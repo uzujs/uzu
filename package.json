@@ -1,0 +1,26 @@
+{
+  "name": "uzu",
+  "version": "0.0.1",
+  "description": "WIP",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/uzujs/uzu.git"
+  },
+  "author": "jay r bolton <jayrbolton@gmail.com> (http://jayrbolton.com/)",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/uzujs/uzu/issues"
+  },
+  "homepage": "https://github.com/uzujs/uzu#readme",
+  "dependencies": {
+    "ev-stream": "0.0.1",
+    "snabbdom": "0.6.7"
+  }
+}
