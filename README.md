@@ -48,10 +48,10 @@ _Model_ `Temps.js`
 const stream = require('uzu/stream')
 const model = require('uzu/model')
 
-module.exports = function Temps(dom$) {
+module.exports = function Temps (dom$) {
   // Get the input values from the change event streams
-  const fahrenVal$ = streams.dom.value(dom$.change.celsius)
-  const celsiusVal$ = streams.dom.value(dom$.change.fahren)
+  const fahrenVal$ = streams.dom.value(dom$.change('celsius'))
+  const celsiusVal$ = streams.dom.value(dom$.change('fahren'))
 
   // Streams of converted values from the inputs
   const fahren$ = stream.map(convertToFahren, celsiusVal$)
