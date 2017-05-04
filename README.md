@@ -63,7 +63,7 @@ module.exports = function convertTemps (fahrenEv$, celsiusEv$) {
 ```
 
 _Render_ `page.js`
-```
+```js
 const render = require('uzu/render')
 const view = require('./view')
 const convert = require('./convertTemps')
