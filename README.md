@@ -1,5 +1,7 @@
 # :cyclone: uzu :cyclone:
 
+> **PLEASE NOTE** This project is very much still in progress and experimental, and is not ready for widespread use
+
 Uzu is a library for creating UI components on the web using virtual DOM (powered by [Snabbdom](https://github.com/snabbdom/snabbdom)) combined with functional reactive programming.
 
 _Benefits_
@@ -68,7 +70,7 @@ const convert = require('./convertTemps')
 
 // This is a top-level initialization function for the page, mostly responsible for initializing your models and passing the dom$ streams down
 function init (actions) {
-  // dom$ is a collection of event streams that come from the view using the h function's `streams` property
+  // actions() is the same function we had in the view for retrieving event streams
   return convertTemps(actions('changeFahren'), actions('changeCelsius'))
 }
 
