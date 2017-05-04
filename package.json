@@ -7,7 +7,7 @@
     "doc": "docs"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "browserify -t es2040 test | tape-run --render=\"tap-spec\""
   },
   "repository": {
     "type": "git",
@@ -20,7 +20,12 @@
   },
   "homepage": "https://github.com/uzujs/uzu#readme",
   "dependencies": {
-    "ev-stream": "0.0.1",
-    "snabbdom": "0.6.7"
+    "ev-stream": "https://github.com/jayrbolton/ev-stream.git",
+    "snabbdom": "0.6.7",
+    "ramda": "0.23.0"
+  },
+  "devDependencies": {
+    "es2040": "1.2.5",
+    "zuul": "3.11.1"
   }
 }

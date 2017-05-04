@@ -13,9 +13,8 @@ _Benefits_
 _Considerations_
 * Event streams and FRP can be difficult to learn in the beginning, but can be great for abstracting complex asynchronous logic
 * All html is generated from javascript code, and uzu modules do not use JSX
+* The view functions are totally decoupled from the UI logic
 * Very tiny size at less than 5kb
-
-In Uzu, the UI logic is totally decoupled from the presentation layer (ie. the view functions).
 
 ## Examples
 
@@ -30,11 +29,11 @@ const h = require('uzu/h')
 module.exports = function view (temps) {
   return h('div', [
     h('p', 'Convert between Fahrenheit and Celsius!')
-  , input(temps.fahren, 'fahren')
-  , input(temps.celsius, 'celsius')
+  , input(temps.fahren, 'changeFahren')
+  , input(temps.celsius, 'changeCelsius')
   ])
 }
- 
+
 function input (value, name) {
   return h('input', {
     props: {type: 'text', value: value}
@@ -48,10 +47,10 @@ _Model_ `Temps.js`
 const stream = require('uzu/stream')
 const model = require('uzu/model')
 
-module.exports = function Temps (dom$) {
+module.exports = function Temps (actions) {
   // Get the input values from the change event streams
-  const fahrenVal$ = streams.dom.value(dom$.change('celsius'))
-  const celsiusVal$ = streams.dom.value(dom$.change('fahren'))
+  const fahrenVal$ = streams.map(ev => ev.currentTarget.value, actions.celsiusEvent$)
+  const celsiusVal$ = streams.map(ev => ev.currentTarget.value, actions.fahrenEvent$)
 
   // Streams of converted values from the inputs
   const fahren$ = stream.map(convertToFahren, celsiusVal$)
@@ -125,7 +124,7 @@ The best way to get your bearings on the full Uzu workflow is to work through th
 
 #### Organizing your application
 
-* Keep your view functions, Model constructor functions, and `render` code in separate files. 
+* Keep your view functions, Model constructor functions, and `render` code in separate files.
 * Make directories for `views`, `models`, and `render`.
 * Within each directory, all the js files can generally be kept flat, without further directory nesting. Sometimes you may find it useful to make sub-directories in the `models` or `views` directory with the names of resource types, such as `user` or `payment`.
 
@@ -134,7 +133,7 @@ An example directory structure is:
 * `/client/models` -- contains all model constructor functions
 * `/client/views` -- contains all view functions
 * `/client/lib` -- contains all utilities and helpers
-* `/client/render` -- contains all js files that get included in `<script>` tags, which call the uzu `render` function. 
+* `/client/render` -- contains all js files that get included in `<script>` tags, which call the uzu `render` function.
 
 ## Boostrapping Framework (`uzu-prototype`)
 
@@ -173,7 +172,7 @@ To manage dates and times set from inputs, converted into , use this library:
 
 ### AutoCompletion
 
-To support autocompleting inputs, use: 
+To support autocompleting inputs, use:
 
 ### Keyboard events
 

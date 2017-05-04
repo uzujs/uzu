@@ -1,16 +1,40 @@
-var stream = require('ev-stream')
+var stream = require('event-stream')
 
-var all = {}
+module.exports = function(all) {
 
-function initStream (vnode) {
-  var streams = vnode.data.streams || {}
-  for(var event in streams) {
+  function initStreams (oldvnode, vnode) {
+    var streams = vnode.data.streams || {}
+    for (var event in streams) {
+      var keys = Array.isArray(streams[event]) ? streams[event] : [streams[event]]
+      for (var i = 0 ; i < keys.length ; ++i) {
+        var key = keys[i]
+        all[key] = all[key] || createStream(vnode, event)
+      }
+    }
+  }
+
+  function destroyStreams (vnode) {
+    var streams = vnode.data.streams || {}
+    for(var event in streams) {
+      var keys = Array.isArray(streams[event]) ? streams[event] : [streams[event]]
+      for (var i = 0 ; i < keys.length ; ++i) {
+        var key = keys[i]
+        var stream = all[key]
+        killStream(vnode, event, stream)
+        delete all[key]
+      }
+    }
+  }
+
+  function createStream(vnode, event) {
     var s = stream.create()
     vnode.elm.addEventListener(event, s)
-    all[event] = all[event] || {}
-    all[event][streams[event]] = s
+    return s
   }
-  vnode.data.streams._all = all
-}
 
-module.exports = {create: initStream}
+  function killStream(vnode, event, stream) {
+    vnode.elm.removeEventListener(event, stream)
+    stream.updaters = []
+  }
+  return {create: initStreams, update: initStreams, destroy: destroyStreams}
+}
