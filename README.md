@@ -26,38 +26,37 @@ _View_ `view.js`
 ```js
 const h = require('uzu/h')
 
-module.exports = function view (temps) {
+module.exports = function view (actions, temps) {
   return h('div', [
     h('p', 'Convert between Fahrenheit and Celsius!')
-  , input(temps.fahren, 'changeFahren')
-  , input(temps.celsius, 'changeCelsius')
+  , input(temps.fahren, actions('changeFahren'))
+  , input(temps.celsius, actions('changeCelsius'))
   ])
 }
 
-function input (value, name) {
+function input (value, action) {
   return h('input', {
     props: {type: 'text', value: value}
-  , streams: {change: name}
+  , on: {change: action}
   })
 }
 ```
 
-_Model_ `Temps.js`
+_Model_ `convertTemps.js`
 ```js
 const stream = require('uzu/stream')
-const model = require('uzu/model')
 
-module.exports = function Temps (actions) {
+module.exports = function convertTemps (fahrenEv$, celsiusEv$) {
   // Get the input values from the change event streams
-  const fahrenVal$ = streams.map(ev => ev.currentTarget.value, actions.celsiusEvent$)
-  const celsiusVal$ = streams.map(ev => ev.currentTarget.value, actions.fahrenEvent$)
+  const fahrenVal$ = stream.map(ev => ev.currentTarget.value, fahrenEv$)
+  const celsiusVal$ = stream.map(ev => ev.currentTarget.value, celsiusEv$)
 
   // Streams of converted values from the inputs
   const fahren$ = stream.map(convertToFahren, celsiusVal$)
   const celsius$ = stream.map(convertToCelsius, fahrenVal$)
 
   // A model maps key names to stream values for use in the view
-  return model({ fahren: fahren$, celsius: celsius$ })
+  return stream.model({ fahren: fahren$, celsius: celsius$ })
 }
 ```
 
@@ -65,16 +64,16 @@ _Render_ `page.js`
 ```
 const render = require('uzu/render')
 const view = require('./view')
-const Temps = require('./Temps')
+const convert = require('./convertTemps')
+
+// This is a top-level initialization function for the page, mostly responsible for initializing your models and passing the dom$ streams down
+function init (actions) {
+  // dom$ is a collection of event streams that come from the view using the h function's `streams` property
+  return convertTemps(actions('changeFahren'), actions('changeCelsius'))
+}
 
 // Get a container to render into
 const container = document.querySelector('.uzu-render')
-
-// This is a top-level initialization function for the page, mostly responsible for initializing your models and passing the dom$ streams down
-function init (dom$) {
-  // dom$ is a collection of event streams that come from the view using the h function's `streams` property
-  return Temps(dom$)
-}
 
 // Render the UI to the page. We only need to call this render function once per page.
 render(init, view, container)
