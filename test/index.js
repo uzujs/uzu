@@ -1,2 +1,2 @@
-require('./model')
-require('./snabbdom-streams')
+require('./snabbdom-actions')
+require('./render')

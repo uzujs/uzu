@@ -1,0 +1,3 @@
+ui: mocha-qunit
+browserify:
+  - transform: es2040

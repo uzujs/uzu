@@ -1,57 +1,42 @@
+const R = require('ramda')
 const stream = require('../../../ev-stream/index.js')
 const assert = require('assert')
 const render = require('../../render')
-const model = require('../../model')
 const h = require('../../h')
 
+// TODO how to pass in dynamic data to the streams, while keeping the streams module create-only
+
 function view (counters) {
-  console.log('counters', counters)
   return h('div', [
-    h('button', {streams: {click: 'addCounter'}}, 'Add Counter')
-  , h('div', counters.all.map(viewCounter))
+    h('button', {actions: {click: 'addCounter'}}, 'Add Counter')
+  , h('div', counters.map(viewCounter))
   ])
 }
 
-function viewCounter (count) {
+function viewCounter (count, idx) {
   return h('div', [
-    h('p', 'Total is ' + count.count)
-  , h('button', {on: {click: count.actions.increment$}}, 'increment')
-  , h('button', {streams: {click: {decrement: idx}}}, 'decrement')
-  , h('button', {streams: {click: {reset: reset}}}, 'reset')
+    h('p', 'Total is ' + count)
+  , h('button', {actions: {click: ['add', [idx, 1]]}}, 'increment')
+  , h('button', {actions: {click: ['add', [idx, -1]]}}, 'decrement')
+  , h('button', {actions: {click: ['add', [idx, -count]]}}, 'reset')
   ])
 }
 
-function init (dom) {
-  return CounterList({
-    increment$: dom('increment')
-  , decrement$: dom('decrement')
-  , reset$: dom('reset')
-  , addCounter$: dom('addCounter')
-  })
-}
-
-function CounterList (actions) {
-  const {addCounter$} = actions
-  const newCounter$ = stream.flatMap(() => Counter(actions), addCounter$)
-  stream.map(ac => console.log({ac}), addCounter$)
-  const all$ = stream.scan((all, c) => all.concat([c]), [], newCounter$)
-  stream.map(counters => console.log({counters}), all$)
-  return model({all: all$})
-}
-
-function Counter (actions) {
-  const {increment$, decrement$, reset$} = actions
+// Responsible for keeping a list of counters
+function CounterList (addCounter$, add$) {
+  stream.log(add$, 'add$')
   const count$ = stream.scanMerge([
-    [increment$, (c) => c + 1]
-  , [decrement$, (c) => c - 1]
-  , [reset$,     ()  => 0]
-  ], 0)
-  return model({count: count$})
+    [addCounter$, (counters, _) => counters.concat([0])]
+  , [add$,        (counters, [idx, n]) => R.update(idx, counters[idx] + n, counters)]
+  ], [])
+  stream.log(count$, 'count$')
+  return count$
 }
 
+const init = (actions) => CounterList(actions('addCounter'), actions('add'))
 const container = document.createElement('div')
 document.body.appendChild(container)
-var vnode$ = render(init, view, container)
+var vnode$ = render(init, view, [], container)
 
 stream.map(() => console.log("PATCHING"), vnode$)
 

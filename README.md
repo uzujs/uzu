@@ -24,61 +24,62 @@ _Considerations_
 
 A temperature converter between celsius and fahrenheit
 
-_View_ `view.js`
+_View: presentation layer_ `view.js`
 ```js
 const h = require('uzu/h')
 
-module.exports = function view (actions, temps) {
+module.exports = function view (temps) {
   return h('div', [
     h('p', 'Convert between Fahrenheit and Celsius!')
-  , input(temps.fahren, actions('changeFahren'))
-  , input(temps.celsius, actions('changeCelsius'))
+  , input(temps.fahren, 'changeFahren')
+  , input(temps.celsius, 'changeCelsius')
   ])
 }
 
-function input (value, action) {
+function input (value, actionName) {
   return h('input', {
     props: {type: 'text', value: value}
-  , on: {change: action}
+  , actions: {change: actionName}
   })
 }
 ```
 
-_Model_ `convertTemps.js`
+_Model: UI logic_ `convertTemps.js`
 ```js
 const stream = require('uzu/stream')
 
-module.exports = function convertTemps (fahrenEv$, celsiusEv$) {
+module.exports = function convertTemps (fahrenChange$, celsiusChange$) {
   // Get the input values from the change event streams
-  const fahrenVal$ = stream.map(ev => ev.currentTarget.value, fahrenEv$)
-  const celsiusVal$ = stream.map(ev => ev.currentTarget.value, celsiusEv$)
+  const fahrenVal$ = stream.map(ev => ev.currentTarget.value, fahrenChange$)
+  const celsiusVal$ = stream.map(ev => ev.currentTarget.value, celsiusChange$)
 
   // Streams of converted values from the inputs
-  const fahren$ = stream.map(convertToFahren, celsiusVal$)
-  const celsius$ = stream.map(convertToCelsius, fahrenVal$)
+  const fahren$  = stream.map(c => c * 9 / 5 + 32, celsiusVal$)
+  const celsius$ = stream.map(f => (f - 32) / 1.8, fahrenVal$)
 
-  // A model maps key names to stream values for use in the view
-  return stream.model({ fahren: fahren$, celsius: celsius$ })
+  // Map key names to stream values for use in the view
+  return stream.object({ fahren: fahren$, celsius: celsius$ })
 }
 ```
 
-_Render_ `page.js`
+_Render & Controller_ `page.js`
 ```js
 const render = require('uzu/render')
 const view = require('./view')
-const convert = require('./convertTemps')
+const convertTemps = require('./convertTemps')
 
-// This is a top-level initialization function for the page, mostly responsible for initializing your models and passing the dom$ streams down
-function init (actions) {
-  // actions() is the same function we had in the view for retrieving event streams
+// This is a top-level initialization function for the page
+// It's responsible for routing the action streams from your DOM into your models
+// This only needs to be called once per page
+function controller (actions) {
+  // actions() is a function that corresponds to the actions property from the view
+  // It will fetch action streams from the DOM given an action name
   return convertTemps(actions('changeFahren'), actions('changeCelsius'))
 }
 
-// Get a container to render into
-const container = document.querySelector('.uzu-render')
-
 // Render the UI to the page. We only need to call this render function once per page.
-render(init, view, container)
+const container = document.querySelector('.uzu-render')
+render(controller, view, container)
 ```
 
 #### "7GUIs" Demos
@@ -91,7 +92,6 @@ render(init, view, container)
 ## Virtual DOM with the `h` function
 
 Uzu uses [Snabbdom](github.com/snabbdom/snabbdom) under the hood for efficiently creating and updating HTML pages from javascript. We make use of the following Snabbdom modules:
-* [eventlisteners](https://github.com/snabbdom/snabbdom#eventlisteners-module)
 * [props](https://github.com/snabbdom/snabbdom#the-props-module)
 * [class](https://github.com/snabbdom/snabbdom#the-class-module)
 * [attributes](https://github.com/snabbdom/snabbdom#the-attributes-module)
@@ -115,7 +115,7 @@ You can install Uzu via [npm](https://npmjs.org/package/uzu)
 
 One of the trickiest inital steps is to get a good handle on event streams. Try out this this tutorial to help your understanding:
 
-[**Event Stream Tutorial**](/docs/event-stream-tutorial)
+[**Stream Tutorial**](/docs/event-stream-tutorial)
 
 #### Todo Tutorial
 
@@ -131,7 +131,7 @@ The best way to get your bearings on the full Uzu workflow is to work through th
 
 An example directory structure is:
 
-* `/client/models` -- contains all model constructor functions
+* `/client/models` -- contains all model functions
 * `/client/views` -- contains all view functions
 * `/client/lib` -- contains all utilities and helpers
 * `/client/render` -- contains all js files that get included in `<script>` tags, which call the uzu `render` function.
@@ -148,16 +148,16 @@ To make basic ajax requests and get the responses as FRP event streams, you can 
 [https://github.com/uzujs/uzu-ajax](https://github.com/uzujs/uzu-ajax)
 
 The `Crud` library is a higher-level way of abstracting and managing resources over ajax:
-[https://github.com/uzujs/uzu-model-crud](https://github.com/uzujs/uzu-model-crud)
+[https://github.com/uzujs/uzu-crud](https://github.com/uzujs/uzu-crud)
 
 ### Undo functionality
 
 To support rolling back data based on undo and redo events, use this library:
-[https://github.com/uzujs/uzu-model-undo](https://github.com/uzujs/uzu-model-undo)
+[https://github.com/uzujs/uzu-undo](https://github.com/uzujs/uzu-undo)
 
 ### URL and query strings
 
-To track URL changes and manage the URL query string using event streams, use this library:
+To track URL changes and manage the URL query string using event streams, use:
 [https://github.com/uzujs/uzu-url](https://github.com/uzujs/uzu-url)
 
 ### Validate objects
@@ -167,7 +167,8 @@ To validate objects, such as when submitting forms:
 
 ### Datetimes
 
-To manage dates and times set from inputs, converted into , use this library:
+To manage dates and times set from inputs, converted into `moment` objects and automatically formatted, use this library:
+[https://github.com/uzujs/uzu-datetime](https://github.com/uzujs/uzu-datetime)
 
 ### ChargeCard
 
