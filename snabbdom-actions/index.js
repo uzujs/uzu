@@ -3,43 +3,54 @@ var stream = require('../../ev-stream/index.js')
 // TODO snabbdom update should bind new data into the event streams
 
 module.exports = (accumulator) => {
+  var dataCache = {}
+  var id = 0
+
   // Iterate over a vnode's actions
   function iter (vnode, fn) {
     var actions = vnode.data.actions || {}
     for (var event in actions) {
-      var key = actions[event]
-      if(Array.isArray(key) && key.length > 1) {
-        var arg = key[1], key = key[0]
+      if(event !== 'data') {
+        var key = actions[event]
+        fn(key, event, accumulator[key])
       }
-      var s = accumulator[key]
-      fn(key, event, s, arg)
     }
+  }
+
+  function updateData (oldvnode, vnode) {
+    vnode.actionID = oldvnode.actionID
+    dataCache[vnode.actionID] = (vnode.data.actions || {}).data
   }
 
   // Initialize action streams from vnode
   function initActions (emptyvnode, vnode) {
-    iter(vnode, function(key, event, s, arg) {
+    vnode.actionID = id++
+    dataCache[vnode.actionID] = (vnode.data.actions || {}).data
+    iter(vnode, function(key, event, s) {
       accumulator[key] = s || stream.create()
-      bindEvent(vnode, event, accumulator[key], arg)
+      bindEvent(vnode, event, accumulator[key])
     })
   }
 
   // Destroy action streams in a removed vnode
   function destroyActions (vnode) {
     iter(vnode, function(key, event, stream, arg) {
-      killStream(vnode, event, stream)
+      killEvent(vnode, event, stream)
       delete accumulator[key]
+      delete dataCache[vnode.actionID]
     })
   }
 
-  return {create: initActions, /*update: initActions,*/ destroy: destroyActions}
-}
+  function bindEvent(vnode, event, s, arg) {
+    vnode.elm.addEventListener(event, ev => { 
+      s(dataCache[vnode.actionID] || ev)
+    })
+  }
 
-function bindEvent(vnode, event, s, arg) {
-  vnode.elm.addEventListener(event, ev => { s(arg || ev) })
-}
+  function killEvent(vnode, event, stream) {
+    vnode.elm.removeEventListener(event, stream)
+    stream.updaters = []
+  }
 
-function killStream(vnode, event, stream) {
-  vnode.elm.removeEventListener(event, stream)
-  stream.updaters = []
+  return {create: initActions, update: updateData, destroy: destroyActions}
 }

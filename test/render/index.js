@@ -16,20 +16,18 @@ function view (counters) {
 function viewCounter (count, idx) {
   return h('div', [
     h('p', 'Total is ' + count)
-  , h('button', {actions: {click: ['add', [idx, 1]]}}, 'increment')
-  , h('button', {actions: {click: ['add', [idx, -1]]}}, 'decrement')
-  , h('button', {actions: {click: ['add', [idx, -count]]}}, 'reset')
+  , h('button', {actions: {click: 'add', data: [idx, 1]}}, 'increment')
+  , h('button', {actions: {click: 'add', data: [idx, -1]}}, 'decrement')
+  , h('button', {actions: {click: 'add', data: [idx, -count]}}, 'reset')
   ])
 }
 
 // Responsible for keeping a list of counters
 function CounterList (addCounter$, add$) {
-  stream.log(add$, 'add$')
   const count$ = stream.scanMerge([
     [addCounter$, (counters, _) => counters.concat([0])]
   , [add$,        (counters, [idx, n]) => R.update(idx, counters[idx] + n, counters)]
   ], [])
-  stream.log(count$, 'count$')
   return count$
 }
 
