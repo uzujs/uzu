@@ -1,0 +1,13 @@
+{
+  "version": "0.1.0",
+  "name": "examples",
+  "description": "Examples",
+  "repository": {
+    "type": "git"
+  },
+  "scripts": {
+    "start": "npm run dev",
+    "dev": "budo --live --open"
+  },
+  "keywords": []
+}
