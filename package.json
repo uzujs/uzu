@@ -21,8 +21,6 @@
   },
   "homepage": "https://github.com/uzujs/uzu#readme",
   "dependencies": {
-    "ev-stream": "https://github.com/jayrbolton/ev-stream.git",
-    "snabbdom": "0.6.7",
     "ramda": "0.23.0"
   },
   "devDependencies": {
