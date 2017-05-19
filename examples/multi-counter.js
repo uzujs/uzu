@@ -1,19 +1,23 @@
+const R = require('ramda')
 const stream = require('../stream')
-const modelView = require('../modelView')
-const h = require('../h')
+const {modelView, h} = require('../html')
 
+// Apply a stream of functions to an accumulator
+const scanApply = stream.scan((acc, fn) => fn(acc))
+ 
+// UI logic for a single counter
 const keepCount = ({increment, decrement, reset}) => {
-  const add = stream.merge([
-    stream.always(1, increment)
-  , stream.always(-1, decrement)
+  const funcs = stream.merge([
+    stream.always(R.add(1), increment)
+  , stream.always(R.add(-1), decrement)
+  , stream.always(R.multiply(0), reset)
   ])
-  const count = stream.scanMerge([
-    [add, (sum, n) => sum + n]
-  , [reset, (sum, n) => 0]
-  ], 0)
-  return {count}
+  return {
+    count: scanApply(0, funcs)
+  }
 }
 
+// Markup for a single counter
 const counterView = ({count}) => {
   return h('div', {}, [
     'Current count is '
@@ -24,25 +28,21 @@ const counterView = ({count}) => {
   ])
 }
 
-const counter = modelView(keepCount, counterView)
-
+// UI logic for multiple counters
 const listCounters = ({addCounter, removeCounter}) => {
-  const counters = stream.scanMerge([
-    [addCounter, appendCounter]
-  , [removeCounter, popCounter]
-  ], [])
-  return {counters}
+  const updates = stream.merge([
+    stream.always(appendCounter, addCounter)
+  , stream.always(R.init, removeCounter)
+  ])
+  return {
+    counters: scanApply([], updates)
+  }
 }
 
 // Utilities for listCounters model
 const appendCounter = (counters) => {
   const component = modelView(keepCount, counterView)
   return counters.concat([component])
-}
-
-const popCounter = (counters) => {
-  counters.pop()
-  return counters
 }
 
 // Main view for counter list
