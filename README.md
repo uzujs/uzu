@@ -10,31 +10,30 @@ _Benefits_
 * Keep your apps snappy and responsive with FRP
 * Easily create unit tests for your UI logic
 * Bootstrap a new application quickly with `uzu-prototype`
-* Mix and match with other libraries on NPM, such as [Ramda](ramdajs.com/docs/)
+* Mix and match with other plain-JS libraries on NPM, such as [Ramda](ramdajs.com/docs/)
 
 _Considerations_
 * FRP (streams) can be difficult to learn in the beginning, but can be great for abstracting complex asynchronous logic
 * All HTML is generated from javascript code, and uzu modules do not use JSX
 * Uzu does not use or need virtual DOM, and is able to use a more efficient architecture
 * Uzu encourages a strong separation between views and logic
-* Very tiny size at less than 5kb
+* Very tiny size at only 3.2kb
 
 ## At a glance
 
-You can install `uzu` via [npm](https://npmjs.org/package/uzu)
+Uzu consists of two main parts:
+* A [`stream`](/stream) library for managing UI logic
+* An [`h`](/html) function and [`modelView`](/html) function for rendering markup
 
-* You can require the `h` function using `require('uzu/h')`
-* You can require the `stream` library using `require('uzu/stream')`
-* You can require the `modelView` function using `require('uzu/modelView')`
+### Quick Examples
 
-### Quick Example
+View the [/examples](/examples) folder to view some working mini-apps. You can run a server for any of those examples easily with budo (`npm install -g budo`) by running `budo examples/multi-counter.js`.
 
-A temperature converter between celsius and fahrenheit
+Here is a temperature converter between celsius and fahrenheit
 
 ```js
 const stream = require('uzu/stream')
-const modelView = require('uzu/modelView')
-const h = require('uzu/h')
+const {h, modelView} = require('uzu/html')
 
 // This function contains our UI logic
 const tempConvert = ({changeCelsius, changeFahren}) => {
@@ -51,10 +50,10 @@ const round = n => Math.round(n * 100) / 100
 
 const tempView = ({celsius, fahren}) => {
   return h('div', {}, [
-    h('label', {}, ['Celsius'])
+    h('label', {}, 'Celsius')
   , input(celsius, 'changeCelsius')
   , h('br', {}, [])
-  , h('label', {}, ['Fahrenheit'])
+  , h('label', {}, 'Fahrenheit')
   , input(fahren, 'changeFahren')
   ])
 }
@@ -70,30 +69,23 @@ const {elm} = modelView(tempConvert, tempView)
 document.body.appendChild(elm)
 ```
 
-#### "7GUIs" Demos
-
-[7GUIs]() is a helpful benchmark for frontend development using a set of example UI components that get progressively more complex.
-
-* [**View the 7GUIs demo for Uzu**]()
-* [**View the source code for each example component**]()
-
 ## `h` - DOM Element Creation
 
-[:cat: **View the API** :dog:](/h)
+[:cat: **View the API** :cat:](/html)
 
 Uzu generates HTML with the `h` function. This function will seem the same as functions from `virtual-dom`, `snabbdom`, etc. However, it is actually much simpler: it only generates [HTMLElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement) objects and does no diffing.
 
 In other React-like libraries, view functions get re-executed on every state update. The virtual DOM tree is then diffed and patched on every state update. Instead, in Uzu, your view function is only called once on page load. Streams that are embedded in your views will update specific parts of your DOM individually without having to diff your entire DOM tree. This allows for much better performance potential and a simpler architecture.
 
-## `stream` - Declarative UI Logic
+## `stream` - Declarative UI logic
 
-[:beetle: **View the API** :honeybee:](/stream)
+[:honeybee: **View the API** :honeybee:](/stream)
 
 Streams are the core engine of Uzu and allow you to manage delayed and repeating values like clicks, ajax, etc. in a very declarative and functional way.
 
-## `modelView` - Tying it All Together
+## `modelView` - Tying it all together
 
-[:dolphin: **View the API** :whale2:](/modelView)
+[:dolphin: **View the API** :dolphin:](/html)
 
 The `modelView` function allows you to decouple your UI logic from your views. In some contexts, this is known as separating your "presentation layer" from your "domain logic layer". 
 
