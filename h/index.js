@@ -1,10 +1,23 @@
 const curryN = require('ramda/src/curryN')
 const stream = require('../stream')
 
+// Cached information to handle the circular dependencies in modelView
+var cache = { }
+function modelView (model, view) {
+  cache.status = 'write'
+  const {streams} = view({})
+  const result = model(streams)
+  cache.status = 'read'
+  const {elm} = view(result)
+  cache = {}
+  return {elm, streams}
+}
+
+
 function h (sel, options, children) {
   if (!Array.isArray(children)) children = [children]
-  if (document._hReadCache) {
-    var streams = document._hCachedStreams
+  if (cache.status === 'read') {
+    var streams = cache.cached
   } else {
     var streams = {}
     // Create the event listener streams
@@ -21,9 +34,9 @@ function h (sel, options, children) {
       }
     }
   }
-  // Cache streams and return immediately for the component() function
-  if (document._hCacheStreams) {
-    document._hCachedStreams = streams
+  // Cache streams and return immediately for the modelView() function
+  if (cache.status === 'write') {
+    cache.cached = streams
     return {streams}
   }
 
@@ -35,10 +48,11 @@ function h (sel, options, children) {
     var name = options.streams[event]
     elm.addEventListener(event, streams[name])
   }
-  setInner(elm, children)
-  for (var i = 0; i < children.length; ++i) {
+  // Set inner content / children
+  setInitialInner(elm, children)
+  for (let i = 0; i < children.length; ++i) {
     if (stream.isStream(children[i])) {
-      stream.map(() => setInner(elm, children), children[i])
+      stream.map(c => updateInner(elm, c, i), children[i])
     }
   }
 
@@ -55,9 +69,8 @@ function h (sel, options, children) {
   var props = options.props || {}
   assignProps(elm, props)
   for (var propName in props) {
-    var v = props[propName]
-    if(stream.isStream(v)) {
-      stream.map(() => assignProps(elm, props), v)
+    if(stream.isStream(props[propName])) {
+      stream.map(() => assignProps(elm, props), props[propName])
     }
   }
 
@@ -65,15 +78,15 @@ function h (sel, options, children) {
   var attrs = options.attrs || {}
   setAttrs(elm, attrs)
   for (var attrName in attrs) {
-    var v = attrs[attrName]
-    if(stream.isStream(v)) {
-      stream.map(() => setAttrs(elm, attrs), v)
+    if(stream.isStream(attrs[attrName])) {
+      stream.map(() => setAttrs(elm, attrs), attrs[attrName])
     }
   }
 
   return {elm, streams}
 }
 
+// Parse a selector string like div.x.y
 function parseSelector (str) {
   const bits = str.split('.')
   const tagName = bits[0]
@@ -110,41 +123,52 @@ function setAttrs (elm, attrs) {
   }
 }
 
-// Set inner content
-// Also, find any new child streams
-function setInner (elm, children) {
-  var existing = elm.childNodes
-  var nodes = getNodeChildren(children)
-  for (var i = 0; i < nodes.length; ++i) {
-    if(existing[i]) {
-      if(!existing[i].isEqualNode(nodes[i])) {
-        elm.replaceChild(nodes[i], existing[i])
+// Set new inner content on a stream update
+function updateInner (elm, newVal, idx) {
+  const node = getNode(newVal)
+  const children = elm.childNodes
+  const existing = children[idx]
+  if (Array.isArray(node)) {
+    // Replace existing
+    for (var i = 0; i < node.length && i < children.length; ++i) {
+      if (!node[i].isEqualNode(children[i])) {
+        elm.replaceChild(node[i], children[i])
       }
-    } else {
-      elm.appendChild(nodes[i])
     }
-  }
-  for (var i = nodes.length; i < existing.length; ++i) {
-    elm.removeChild(existing[i])
+    // Append missing
+    for (var i = children.length; i < node.length; ++i) {
+      elm.appendChild(node[i])
+    }
+    // Remove extras
+    for (var i = node.length; i < children.length; ++i) {
+      elm.removeChild(children[i])
+    }
+  } else if (existing) {
+    elm.replaceChild(node, existing)
+  } else {
+    elm.appendChild(node)
   }
 }
 
-function getNodeChildren (children) {
-  var nodes = []
-  for (var i = 0; i < children.length; ++i) {
-    var c = children[i]
-    var v = stream.isStream(c) ? c() : c
-    if (Array.isArray(v)) {
-      nodes = nodes.concat(getNodeChildren(v))
-    } else if (v.tagName) {
-      nodes.push(v)
-    } else if (v.elm) {
-      nodes.push(v.elm)
-    } else {
-      nodes.push(document.createTextNode(String(v)))
-    }
+// Set inner content on pageload
+function setInitialInner (elm, children) {
+  const existing = elm.childNodes
+  const nodes = children.map(getNode)
+  for (var i = 0; i < nodes.length; ++i) {
+    elm.appendChild(nodes[i])
   }
-  return nodes
 }
 
-module.exports = curryN(3, h)
+// Get a node or array of nodes from some value in the h function's children
+function getNode (val) {
+  if (Array.isArray(val)) return val.map(getNode)
+  if (val.tagName) return val
+  if (val.elm) return val.elm
+  var unwrapped = stream.isStream(val) ? val() : val
+  return document.createTextNode(String(unwrapped))
+}
+
+module.exports = {
+  h: curryN(3, h)
+, modelView: curryN(2, modelView)
+}
