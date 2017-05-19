@@ -7,7 +7,7 @@
   },
   "scripts": {
     "start": "npm run dev",
-    "dev": "budo --live --open index.js"
+    "dev": "budo --live --open"
   },
   "keywords": []
 }
