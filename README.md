@@ -1,23 +1,8 @@
 # :cyclone: uzu :cyclone:
 
-> **PLEASE NOTE** This project is very much still in progress and experimental, and is not ready for widespread use
+> **PLEASE NOTE** This project is very much still in progress and experimental, and is not ready for use
 
 Uzu is a library for creating dynamic UI components on the web with javascript and functional reactive programming.
-
-_Benefits_
-* Keep large and complex single-page applications nicely organized
-* Nest and compose your UI components
-* Keep your apps snappy and responsive with FRP
-* Easily create unit tests for your UI logic
-* Bootstrap a new application quickly with `uzu-prototype`
-* Mix and match with other plain-JS libraries on NPM, such as [Ramda](ramdajs.com/docs/)
-
-_Considerations_
-* FRP (streams) can be difficult to learn in the beginning, but can be great for abstracting complex asynchronous logic
-* All HTML is generated from javascript code, and uzu modules do not use JSX
-* Uzu does not use or need virtual DOM, and is able to use a more efficient architecture
-* Uzu encourages a strong separation between views and logic
-* Very tiny size at only 3.2kb
 
 ## At a glance
 
@@ -68,98 +53,4 @@ function input (value, inputName) {
 const {elm} = modelView(tempConvert, tempView)
 document.body.appendChild(elm)
 ```
-
-## `h` - DOM Element Creation
-
-[:cat: **View the API** :cat:](/html)
-
-Uzu generates HTML with the `h` function. This function will seem the same as functions from `virtual-dom`, `snabbdom`, etc. However, it is actually much simpler: it only generates [HTMLElement](https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement) objects and does no diffing.
-
-In other React-like libraries, view functions get re-executed on every state update. The virtual DOM tree is then diffed and patched on every state update. Instead, in Uzu, your view function is only called once on page load. Streams that are embedded in your views will update specific parts of your DOM individually without having to diff your entire DOM tree. This allows for much better performance potential and a simpler architecture.
-
-## `stream` - Declarative UI logic
-
-[:honeybee: **View the API** :honeybee:](/stream)
-
-Streams are the core engine of Uzu and allow you to manage delayed and repeating values like clicks, ajax, etc. in a very declarative and functional way.
-
-## `modelView` - Tying it all together
-
-[:dolphin: **View the API** :dolphin:](/html)
-
-The `modelView` function allows you to decouple your UI logic from your views. In some contexts, this is known as separating your "presentation layer" from your "domain logic layer". 
-
-"Models" are functions that take event streams as parameters and return an object of result streams. Examples include saving users to a server, reading the Wikipedia API, formatting dates and times, etc.
-
-"Views" are functions that take the result streams from the model functions and return event streams.
-
-```
-function model (eventStreams) {
-  // returns resultStreams
-}
-function view (resultStreams) {
-  // returns eventStreams
-}
-
-modelView(model, view)
-```
-
-## Howtos and Tutorials
-
-#### Event Stream Intuition
-
-One of the trickiest inital steps is to get a good handle on event streams. Try out this this tutorial to help your understanding:
-
-[**Stream Tutorial**](/docs/event-stream-tutorial)
-
-#### Counter Tutorial
-
-The best way to get your bearings on the full Uzu workflow is to work through this tutorial:
-
-[**Creating Uzu components, step-by-step**](/docs/todo-tutorial.md)
-
-## Boostrapping Framework (`uzu-prototype`)
-
-Uzu includes a boostrapping framework with basic markup and styles for any web application. It is available on npm as `uzu-prototype` and documentation can be viewed here: **[https://github.com/uzujs/uzu-prototype](https://github.com/uzujs/uzu-prototype)**.
-
-## Modules and Extensions
-
-### Ajax
-
-To make basic ajax requests and get the responses as FRP event streams, use:
-[https://github.com/uzujs/uzu-ajax](https://github.com/uzujs/uzu-ajax)
-
-The `Crud` library is a higher-level way of abstracting and managing resources over ajax:
-[https://github.com/uzujs/uzu-crud](https://github.com/uzujs/uzu-crud)
-
-### Undo functionality
-
-To support rolling back data based on undo and redo events, use:
-[https://github.com/uzujs/uzu-undo](https://github.com/uzujs/uzu-undo)
-
-### URL and query strings
-
-To track URL changes and manage the URL query string using event streams, use:
-[https://github.com/uzujs/uzu-url](https://github.com/uzujs/uzu-url)
-
-### Validate objects
-
-To validate objects, such as when submitting forms:
-[https://github.com/uzujs/uzu-validate](https://github.com/uzujs/uzu-validate)
-
-### Datetimes
-
-To manage dates and times set from inputs, converted into `moment` objects and automatically formatted, use:
-[https://github.com/uzujs/uzu-datetime](https://github.com/uzujs/uzu-datetime)
-
-### ChargeCard
-
-### AutoCompletion
-
-To support autocompleting inputs, use:
-
-### Keyboard events
-
-To get an event stream of keyboard input, use:
-[https://github.com/uzujs/uzu-keyboard](https://github.com/uzujs/uzu-keyboard)
 
