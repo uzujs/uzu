@@ -1,60 +1,15 @@
 const curryN = require('ramda/src/curryN')
 const stream = require('../stream')
 
-// Cached information to handle the circular dependencies in modelView
-var cache = { }
-function modelView (model, view) {
-  cache.status = 'write'
-  const {streams} = view({})
-  const result = model(streams)
-  cache.status = 'read'
-  const {elm} = view(result)
-  cache = {}
-  return {elm, streams}
-}
-
-
 function h (sel, options, children) {
-  if (!Array.isArray(children)) children = [children]
-  if (cache.status === 'read') {
-    var streams = cache.cached
-  } else {
-    var streams = {}
-    // Create the event listener streams
-    for (var event in options.streams) {
-      var name = options.streams[event]
-      streams[name] = stream.create()
-    }
-    // Merge in streams from child components
-    for (var i = 0; i < children.length; ++i) {
-      if (children[i] && children[i].streams) {
-        for (var name in children[i].streams) {
-          streams[name] = children[i].streams[name]
-        }
-      }
-    }
+  if (options === undefined || children === undefined) {
+    throw new Error("Wrong argument types for `h` function: pass in a selector, an object of options, and child nodes")
   }
-  // Cache streams and return immediately for the modelView() function
-  if (cache.status === 'write') {
-    cache.cached = streams
-    return {streams}
-  }
-
   const {tagName, selClass} = parseSelector(sel)
   var elm = document.createElement(tagName)
 
-  // Bind streams to event handlers
-  for (var event in options.streams) {
-    var name = options.streams[event]
-    elm.addEventListener(event, streams[name])
-  }
   // Set inner content / children
-  setInitialInner(elm, children)
-  for (let i = 0; i < children.length; ++i) {
-    if (stream.isStream(children[i])) {
-      stream.map(c => updateInner(elm, c, i), children[i])
-    }
-  }
+  handleChildren(elm, children)  
 
   // Set classes
   var classes = options.classes || {}
@@ -73,7 +28,7 @@ function h (sel, options, children) {
       stream.map(() => assignProps(elm, props), props[propName])
     }
   }
-
+  
   // Set attributes
   var attrs = options.attrs || {}
   setAttrs(elm, attrs)
@@ -83,10 +38,17 @@ function h (sel, options, children) {
     }
   }
 
-  return {elm, streams}
+  // Add event handlers
+  if (options.on) {
+    for (var event in options.on) {
+      elm.addEventListener(event, options.on[event])
+    }
+  }
+
+  return elm
 }
 
-// Parse a selector string like div.x.y
+// Parse a selector string with class names like div.x.y
 function parseSelector (str) {
   const bits = str.split('.')
   const tagName = bits[0]
@@ -123,52 +85,60 @@ function setAttrs (elm, attrs) {
   }
 }
 
-// Set new inner content on a stream update
-function updateInner (elm, newVal, idx) {
-  const node = getNode(newVal)
-  const children = elm.childNodes
-  const existing = children[idx]
-  if (Array.isArray(node)) {
-    // Replace existing
-    for (var i = 0; i < node.length && i < children.length; ++i) {
-      if (!node[i].isEqualNode(children[i])) {
-        elm.replaceChild(node[i], children[i])
+// Update all the children for an element
+function handleChildren (elm, cs) {
+  if (stream.isStream(cs)) {
+    stream.map(v => updateAllChildren(elm, v), cs)
+    if(cs() !== undefined) updateAllChildren(elm, cs())
+    return
+  } 
+  if (!Array.isArray(cs)) cs = [cs]
+  while (cs.length) {
+    const val = cs.shift()
+    if (stream.isStream(val)) {
+      const initialVal = val()
+      // Stream of nodes
+      if (initialVal.nodeType && initialVal.nodeType > 0) {
+        elm.appendChild(initialVal)
+        stream.map(n => elm.replaceChild(n, elm.children[i]), val)
+      } 
+      // Stream of primitive vals
+      else { // treat it as a string
+        var txt = document.createTextNode(String(initialVal))
+        stream.map(v => {txt.textContent = v}, val)
+        elm.appendChild(txt)
       }
+    } else {
+      elm.appendChild(toNode(val))
     }
-    // Append missing
-    for (var i = children.length; i < node.length; ++i) {
-      elm.appendChild(node[i])
-    }
-    // Remove extras
-    for (var i = node.length; i < children.length; ++i) {
-      elm.removeChild(children[i])
-    }
-  } else if (existing) {
-    elm.replaceChild(node, existing)
-  } else {
-    elm.appendChild(node)
   }
 }
 
-// Set inner content on pageload
-function setInitialInner (elm, children) {
-  const existing = elm.childNodes
-  const nodes = children.map(getNode)
-  for (var i = 0; i < nodes.length; ++i) {
-    elm.appendChild(nodes[i])
+// Update *all* children for a node
+// This is useful when the child of a node is a stream of arrays of nodes
+function updateAllChildren (elm, children) {
+  if (!Array.isArray(children)) children = [children]
+  // Append or replace
+  for (var i = 0; i < children.length; ++i) {
+    if (elm.childNodes[i]) {
+      if (elm.childNodes[i].nodeType === 3) { // text node
+        elm.childNodes[i].textContent = String(children[i])
+      } else {
+        elm.replaceChild(children[i], elm.childNodes[i])
+      }
+    } else {
+      elm.appendChild(toNode(children[i]))
+    }
+  }
+  // Remove extras
+  for (var i = children.length; i < elm.children.length; ++i) {
+    elm.removeChild(elm.children[i])
   }
 }
 
-// Get a node or array of nodes from some value in the h function's children
-function getNode (val) {
-  if (Array.isArray(val)) return val.map(getNode)
-  if (val.tagName) return val
-  if (val.elm) return val.elm
-  var unwrapped = stream.isStream(val) ? val() : val
-  return document.createTextNode(String(unwrapped))
+function toNode (val) {
+  if(val && val.nodeType && val.nodeType > 0) return val
+  return document.createTextNode(val)
 }
 
-module.exports = {
-  h: curryN(3, h)
-, modelView: curryN(2, modelView)
-}
+module.exports = curryN(3, h)

@@ -1,9 +1,24 @@
 const stream = require('../stream')
-const {modelView, h} = require('../html')
+const h = require('../html')
 
-const tempConvert = ({changeCelsius, changeFahren}) => {
-  const celsius = stream.map(convertToCelsius, getNumValue(changeFahren))
-  const fahren = stream.map(convertToFahren, getNumValue(changeCelsius))
+const tempConverter = () => {
+  const labelF = h('label', {}, 'Fahrenheit')
+  const labelC = h('label', {}, 'Celsius')
+
+  // event streams
+  const inputFahren = stream.create()
+  const inputCelsius = stream.create()
+  const {celsius, fahren} = tempModel(inputFahren, inputCelsius)
+
+  const inputF = h('input', {on: {input: inputFahren}, props: {value: fahren, placeholder: 'out'}}, [])
+  const inputC = h('input', {on: {input: inputCelsius}, props: {value: celsius, placeholder: 'out'}}, [])
+
+  return h('div', {}, [labelF, inputF, labelC, inputC])
+}
+
+const tempModel = (fahrenChange, celsiusChange) => {
+  const celsius = stream.defaultTo(0, stream.map(convertToCelsius, getNumValue(fahrenChange)))
+  const fahren  = stream.defaultTo(0, stream.map(convertToFahren, getNumValue(celsiusChange)))
   return {celsius, fahren}
 }
 
@@ -13,15 +28,6 @@ const convertToCelsius = f => round((f - 32) / 1.8)
 const convertToFahren = c => round(c * 1.8 + 32)
 const round = n => Math.round(n * 100) / 100
 
-const tempView = ({celsius, fahren}) =>
-  h('div', {}, [
-    h('label', {}, 'Celsius')
-  , h('input', {props: {type: 'number', value: celsius}, streams: {input: 'changeCelsius'}}, [])
-  , h('br', {}, [])
-  , h('label', {}, 'Fahrenheit')
-  , h('input', {props: {type: 'number', value: fahren}, streams: {input: 'changeFahren'}}, [])
-  ])
+document.body.appendChild(tempConverter())
 
-const {elm} = modelView(tempConvert, tempView)
-document.body.appendChild(elm)
 

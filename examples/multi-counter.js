@@ -1,59 +1,59 @@
 const R = require('ramda')
 const stream = require('../stream')
-const {modelView, h} = require('../html')
+const h = require('../html')
 
-// Apply a stream of functions to an accumulator
-const scanApply = stream.scan((acc, fn) => fn(acc))
  
 // UI logic for a single counter
-const keepCount = ({increment, decrement, reset}) => {
-  const funcs = stream.merge([
-    stream.always(R.add(1), increment)
-  , stream.always(R.add(-1), decrement)
-  , stream.always(R.multiply(0), reset)
-  ])
-  return {
-    count: scanApply(0, funcs)
-  }
-}
+const keepCount = ({increment, decrement, reset}) =>
+ stream.scanMerge([
+    [increment, R.add(1)]
+  , [decrement, R.add(-1)]
+  , [reset,     R.always(0)]
+  ], 0)
 
-// Markup for a single counter
-const counterView = ({count}) => {
+
+// Counter component
+const counter = () => {
+  const incBtn = h('button', {}, 'Increment')
+  const decBtn = h('button', {}, 'Decrement')
+  const resetBtn = h('button', {}, 'Reset')
+  const increment = stream.fromEvent('click', incBtn)
+  const decrement = stream.fromEvent('click', decBtn)
+  const reset = stream.fromEvent('click', resetBtn)
+
+  const count = keepCount({increment, decrement, reset})
+
   return h('div', {}, [
     'Current count is '
   , count
-  , h('button', {streams: {click: 'increment'}}, 'increment')
-  , h('button', {streams: {click: 'decrement'}}, 'decrement')
-  , h('button', {streams: {click: 'reset'}}, 'reset')
+  , incBtn
+  , decBtn
+  , resetBtn
   ])
 }
 
 // UI logic for multiple counters
-const listCounters = ({addCounter, removeCounter}) => {
-  const updates = stream.merge([
-    stream.always(appendCounter, addCounter)
-  , stream.always(R.init, removeCounter)
-  ])
-  return {
-    counters: scanApply([], updates)
-  }
-}
+const listCounters = ({clickAdd, clickRem}) =>
+  stream.scanMerge([
+    [clickAdd, (cs) => cs.concat([counter()])]
+  , [clickRem, R.init]
+  ], [])
 
-// Utilities for listCounters model
-const appendCounter = (counters) => {
-  const component = modelView(keepCount, counterView)
-  return counters.concat([component])
-}
 
-// Main view for counter list
-const view = ({counters}) => {
+// Main component
+const component = () => {
+  const addBtn = h('button', {}, 'Add Counter')
+  const clickAdd = stream.fromEvent("click", addBtn)
+  const remBtn = h('button', {}, 'Remove Counter')
+  const clickRem = stream.fromEvent("click", remBtn)
+  const counters = listCounters({clickAdd, clickRem})
+
   return h('div', {}, [
-    h('button', {streams: {click: 'addCounter'}}, 'Add Counter')
+    addBtn
   , h('div', {}, counters)
-  , h('button', {streams: {click: 'removeCounter'}}, 'Remove Counter')
+  , remBtn
   ])
 }
 
-const {streams, elm} = modelView(listCounters, view)
-document.body.appendChild(elm)
+document.body.appendChild(component())
 

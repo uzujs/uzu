@@ -7,50 +7,37 @@ Uzu is a library for creating dynamic UI components on the web with javascript a
 ## At a glance
 
 Uzu consists of two main parts:
-* A [`stream`](/stream) library for managing UI logic
-* An [`h`](/html) function and [`modelView`](/html) function for rendering markup
+* A [`stream`](/stream) library for managing UI logic using event streams
+* An [`h`](/html) function and for generating HTMLElements
 
 ### Quick Examples
 
 View the [/examples](/examples) folder to view some working mini-apps. You can run a server for any of those examples easily with budo (`npm install -g budo`) by running `budo examples/multi-counter.js`.
 
-Here is a temperature converter between celsius and fahrenheit
+Here is a quick counter component to get you started
 
 ```js
 const stream = require('uzu/stream')
-const {h, modelView} = require('uzu/html')
+const h = require('uzu/html')
 
-// This function contains our UI logic
-const tempConvert = ({changeCelsius, changeFahren}) => {
-  const celsius = stream.map(convertToCelsius, getNumValue(changeFahren))
-  const fahren = stream.map(convertToFahren, getNumValue(changeCelsius))
-  return {celsius, fahren}
+const counter = (initial) => {
+  const incBtn = h('button', {}, 'Increment')
+  const inc = stream.fromEvent('click', incBtn)
+  const decBtn = h('button', {}, 'Decrement')
+  const dec = stream.fromEvent('click', decBtn)
+  
+  const count = counterModel(inc, dec, initial)
+  const p = h('p', ['Count is ', count])
+  
+  return h('div', {}, [incBtn, decBtn, p])
 }
 
-// Utilities for tempConvert
-const getNumValue = stream.map(ev => Number(ev.currentTarget.value))
-const convertToCelsius = f => round((f - 32) / 1.8)
-const convertToFahren = c => round(c * 1.8 + 32)
-const round = n => Math.round(n * 100) / 100
+const counterModel = (inc, dec, initial) =>
+  stream.scanMerge([
+    [inc, (count) => count + 1]
+  , [dec, (count) => count - 1]
+  ], initial)
 
-const tempView = ({celsius, fahren}) => {
-  return h('div', {}, [
-    h('label', {}, 'Celsius')
-  , input(celsius, 'changeCelsius')
-  , h('br', {}, [])
-  , h('label', {}, 'Fahrenheit')
-  , input(fahren, 'changeFahren')
-  ])
-}
-
-function input (value, inputName) {
-  return h('input', {
-    props: {type: 'number', value}
-  , streams: {input: eventName}
-  })
-}
-
-const {elm} = modelView(tempConvert, tempView)
-document.body.appendChild(elm)
+document.body.appendChild(counter(0))
 ```
 

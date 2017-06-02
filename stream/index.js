@@ -199,8 +199,14 @@ const isPlainObj = (obj) => {
   return false
 }
 
+const fromEvent = (event, node) => {
+  const s = create()
+  node.addEventListener(event, s)
+  return s
+}
+
 const isStream = (x) =>
   typeof x === 'function' && x.name === 'Stream'
 
-module.exports = {create, map, merge, scan, buffer, filter, scanMerge, defaultTo, always, flatMap, delay, every, throttle, afterSilence, object, isStream, log}
+module.exports = {create, map, merge, scan, buffer, filter, scanMerge, defaultTo, always, flatMap, delay, every, throttle, afterSilence, object, isStream, log, fromEvent}
 
