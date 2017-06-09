@@ -219,9 +219,17 @@ const fromEvent = (event, node) => {
   return s
 }
 
+const model = fn => {
+  const proxy = new Proxy({}, {
+    get: (target, name) => name in target ? target[name] : target[name] = create()
+  })
+  const output = fn(proxy)
+  return {input: proxy, output}
+}
+
 const hasVal = stream => isStream(stream) && stream.data.ts !== undefined && stream.data.val !== undefined
 
 const isStream = (x) => typeof x === 'function' && x.__isStream
 
-module.exports = {create, map, merge, scan, buffer, filter, scanMerge, defaultTo, always, flatMap, delay, every, throttle, afterSilence, isStream, log, fromEvent, zip}
+module.exports = {create, map, merge, scan, buffer, filter, scanMerge, defaultTo, always, flatMap, delay, every, throttle, afterSilence, isStream, log, fromEvent, zip, model}
 
