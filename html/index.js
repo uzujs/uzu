@@ -3,7 +3,7 @@ const stream = require('../stream')
 
 function h (sel, options, children) {
   if (options === undefined || children === undefined) {
-    throw new Error("Wrong argument types for `h` function: pass in a selector, an object of options, and child nodes")
+    throw new TypeError("Wrong argument types for `h` function: pass in a selector, an object of options, and child nodes")
   }
   const {tagName, selClass} = parseSelector(sel)
   var elm = document.createElement(tagName)
@@ -61,7 +61,7 @@ function setClassName (elm, selClass, classes) {
   var names = []
   for (var name in classes) {
     var p = classes[name]
-    if (stream.isStream(p) && p() || !stream.isStream(p) && p) names.push(name)
+    if (getVal(p)) names.push(name)
   }
   elm.className = [selClass].concat(names).join(' ')
 }
@@ -70,7 +70,7 @@ function setClassName (elm, selClass, classes) {
 function assignProps (elm, props) {
   for (var propName in props) {
     var v = props[propName]
-    elm[propName] = stream.isStream(v) ? v() : v
+    elm[propName] = getVal(v)
   }
 }
 
@@ -79,7 +79,7 @@ function assignProps (elm, props) {
 function setAttrs (elm, attrs) {
   for (var attrName in attrs) {
     var attr = attrs[attrName]
-    var v = stream.isStream(attr) ? attr() : attr
+    var v = getVal(attr)
     if (v === undefined) elm.removeAttribute(attrName)
     else elm.setAttribute(attrName, v)
   }
@@ -87,58 +87,48 @@ function setAttrs (elm, attrs) {
 
 // Update all the children for an element
 function handleChildren (elm, cs) {
-  if (stream.isStream(cs)) {
-    stream.map(v => updateAllChildren(elm, v), cs)
-    if(cs() !== undefined) updateAllChildren(elm, cs())
-    return
-  } 
   if (!Array.isArray(cs)) cs = [cs]
-  while (cs.length) {
-    const val = cs.shift()
+  for (let i = 0; i < cs.length; ++i) {
+    const val = cs[i]
     if (stream.isStream(val)) {
-      const initialVal = val()
-      // Stream of nodes
-      if (initialVal.nodeType && initialVal.nodeType > 0) {
-        elm.appendChild(initialVal)
-        stream.map(n => elm.replaceChild(n, elm.children[i]), val)
-      } 
-      // Stream of primitive vals
-      else { // treat it as a string
-        var txt = document.createTextNode(String(initialVal))
-        stream.map(v => {txt.textContent = v}, val)
-        elm.appendChild(txt)
-      }
-    } else {
-      elm.appendChild(toNode(val))
+      stream.scan(updateChildren(elm, i), 0, val)
     }
+    updateChildren(elm, i)(0, getVal(val))
   }
 }
 
 // Update *all* children for a node
-// This is useful when the child of a node is a stream of arrays of nodes
-function updateAllChildren (elm, children) {
+const updateChildren = (parent, idx) => (prevLen, children) => {
   if (!Array.isArray(children)) children = [children]
-  // Append or replace
-  for (var i = 0; i < children.length; ++i) {
-    if (elm.childNodes[i]) {
-      if (elm.childNodes[i].nodeType === 3) { // text node
-        elm.childNodes[i].textContent = String(children[i])
-      } else {
-        elm.replaceChild(children[i], elm.childNodes[i])
-      }
-    } else {
-      elm.appendChild(toNode(children[i]))
-    }
+
+  // Append all children into a document fragment
+  const newFrag = document.createDocumentFragment()
+  for (let i = 0; i < children.length; ++i) {
+    newFrag.appendChild(toNode(children[i]))
   }
+
+  for (let i = idx; newFrag.childNodes.length > 0; ++i) {
+    const older = parent.childNodes[i]
+    const newer = newFrag.firstChild
+    if (older) parent.replaceChild(newer, older)
+    else parent.appendChild(newer)
+  }
+ 
   // Remove extras
-  for (var i = children.length; i < elm.children.length; ++i) {
-    elm.removeChild(elm.children[i])
+  for (let i = idx + children.length; i < prevLen; ++i) {
+    parent.removeChild(parent.childNodes[i])
   }
+
+  return children.length
 }
 
+// Convert a value into a node, if it's not already a node
 function toNode (val) {
   if(val && val.nodeType && val.nodeType > 0) return val
   return document.createTextNode(val)
 }
+
+// Get a value from a plain value OR a stream
+const getVal = val => stream.isStream(val) ? val() : val
 
 module.exports = curryN(3, h)
