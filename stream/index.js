@@ -8,7 +8,7 @@ const checkStreamType = (s, fnName) => {
 
 // Create a new stream with an optional initial value
 const create = val => {
-  const data = {val, dependents: []}
+  const data = {dependents: []}
   function Stream (val) {
     if (arguments.length === 0) return data.val
     update(data, val)
@@ -16,6 +16,7 @@ const create = val => {
   }
   Stream.data = data
   Stream.__isStream = true
+  if (arguments.length !== 0) Stream(val)
   return Stream
 }
 
@@ -57,6 +58,25 @@ const scan = curryN(3, (fn, accum, stream) => {
   }
   if (hasVal(stream)) updater(stream())
   stream.data.dependents.push(updater)
+  return newS
+})
+
+// Zip the values from many streams into a single stream of arrays of values
+const zip = curryN(1, (streams) => {
+  const newS = create()
+  var accum = []
+  const updater = val => {
+    accum.push(val)
+    if (accum.length === streams.length) {
+      newS(accum)
+      accum = []
+    }
+  }
+  for (var i = 0; i < streams.length; ++i) {
+    checkStreamType(streams[i], 'zip')
+    streams[i].data.dependents.push(updater)
+    if (hasVal(streams[i])) updater(streams[i]())
+  }
   return newS
 })
 
@@ -125,7 +145,7 @@ const log = (annotation, stream) => {
 // Map over a stream, where fn returns a nested stream. Flatten into a single-level stream
 const flatMap = curryN(2, (fn, stream) => {
   checkStreamType(stream, 'flatMap')
-  const newS = create(stream())
+  const newS = create()
   const updater = val => {
     const innerStream = fn(val)
     checkStreamType(innerStream, 'flatMap inner')
@@ -199,9 +219,9 @@ const fromEvent = (event, node) => {
   return s
 }
 
-const hasVal = stream => stream.data.hasOwnProperty('val')
+const hasVal = stream => isStream(stream) && stream.data.ts !== undefined && stream.data.val !== undefined
 
 const isStream = (x) => typeof x === 'function' && x.__isStream
 
-module.exports = {create, map, merge, scan, buffer, filter, scanMerge, defaultTo, always, flatMap, delay, every, throttle, afterSilence, isStream, log, fromEvent}
+module.exports = {create, map, merge, scan, buffer, filter, scanMerge, defaultTo, always, flatMap, delay, every, throttle, afterSilence, isStream, log, fromEvent, zip}
 

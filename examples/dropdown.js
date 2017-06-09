@@ -14,7 +14,6 @@ const itemSelect = (items) => {
     'Select something!'
   , stream.merge(itemArr.map(c => c.selectItem))
   )
-  itemArr.map(c => {stream.log(c.selectItem, 'select')})
   const itemDivs = h('div', {}, itemArr.map(i => i.elm))
   const current  = h('div', {}, h('strong', {}, selectedItem))
   return h('div', {}, [current, itemDivs])
