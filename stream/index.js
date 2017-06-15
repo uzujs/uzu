@@ -2,7 +2,7 @@ const curryN = require('ramda/src/curryN')
 
 const checkStreamType = (s, fnName) => {
   if (!isStream(s)) {
-    throw new TypeError(`Non-stream value passed to ${fnName}: ` + s)
+    throw new TypeError(`Non-stream value passed to stream.${fnName}`)
   }
 }
 
