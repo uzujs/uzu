@@ -28,6 +28,7 @@ const convertToCelsius = f => round((f - 32) / 1.8)
 const convertToFahren = c => round(c * 1.8 + 32)
 const round = n => Math.round(n * 100) / 100
 
+
 document.body.appendChild(tempConverter())
 
 
