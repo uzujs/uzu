@@ -1,31 +1,24 @@
-const h = require('../html')
-const stream = require('../stream')
+const {elm, transform} = require('../html')
+const stream = require('stream')
 
-// pass in a stream of arrays of strings
-const dropdown = (items) => {
-  const dropdowns = stream.map(itemSelect, items)
-  return h('div', {}, dropdowns)
+const hoverer = ({hover}) => {
+  return stream.map(ev => ev.target.textContent, hover)
 }
 
-// pass in an array of strings
-const itemSelect = (items) => {
-  const itemArr = items.map(itemDiv)
-  const selectedItem = stream.defaultTo(
-    'Select something!'
-  , stream.merge(itemArr.map(c => c.selectItem))
-  )
-  const itemDivs = h('div', {}, itemArr.map(i => i.elm))
-  const current  = h('div', {}, h('strong', {}, selectedItem))
-  return h('div', {}, [current, itemDivs])
+const div = tranform({value: x}, child('div'))
+
+const transform = (rules, childFn, container) => {
+  applyRlues(childFn(container))
 }
 
-const itemDiv = item => {
-  const elm = h('div', {}, item)
-  const selectItem = stream.always(item, stream.fromEvent('mouseover', elm))
-  return {elm, selectItem}
+const appendChild = (tagname, container) =>
+  container.appendChild(document.createElement(tagname))
+
+const view = (hoverer, container) => {
+  
+  const div = h('div', [elm('p', ['cupcakes']), elm('p', ['every']), elm('p', ['thursday'])])
+  const hovered = model(div)
+  
 }
 
-const items = stream.create()
-const div = dropdown(items)
-items(['cupcakes', 'every', 'thursday'])
-document.body.appendChild(div)
+view(document.body)

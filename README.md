@@ -7,8 +7,8 @@ Uzu is a library for creating dynamic UI components on the web with javascript a
 ## At a glance
 
 Uzu consists of two main parts:
-* A [`stream`](/stream) library for managing UI logic using event streams
-* An [`h`](/html) function and for generating HTMLElements
+* A [`stream`](/stream) library for managing data that changes over time
+* An [`dom`](/html) library and for generating DOM elements from plain-JS objects and streams
 
 ### Quick Examples
 
@@ -18,26 +18,35 @@ Here is a quick counter component to get you started
 
 ```js
 const stream = require('uzu/stream')
-const h = require('uzu/html')
+const createElm = require('uzu/html')
+const R = require('ramda')
 
-const counter = (initial) => {
-  const incBtn = h('button', {}, 'Increment')
-  const inc = stream.fromEvent('click', incBtn)
-  const decBtn = h('button', {}, 'Decrement')
-  const dec = stream.fromEvent('click', decBtn)
-  
-  const count = counterModel(inc, dec, initial)
-  const p = h('p', ['Count is ', count])
-  
-  return h('div', {}, [incBtn, decBtn, p])
-}
-
-const counterModel = (inc, dec, initial) =>
-  stream.scanMerge([
-    [inc, (count) => count + 1]
-  , [dec, (count) => count - 1]
+// UI logic for a single counter
+const Counter = initial => ({increment, decrement, reset}) =>
+ stream.scanMerge([
+    [increment, R.add(1)]
+  , [decrement, R.add(-1)]
+  , [reset,     R.always(0)]
   ], initial)
+  
+const view = counter => ({
+    tag: 'div'
+  , props: {id: stream.map(R.prop('id'), counter.output)}
+  , children: [
+      'Current count is '
+    , stream.map(R.prop('count'), counter.output)
+    , btn(counter.input.increment, 'Increment')
+    , btn(counter.input.decrement, 'Decrement')
+    , btn(counter.input.reset, 'Reset')
+    ]
+  })
 
-document.body.appendChild(counter(0))
+const render = () => {
+  const vtree = view(stream.model(Counter(0)))
+  const elm = createElm(vtree)
+  document.body.appendChild(elm)
+}
+render()
+
 ```
 

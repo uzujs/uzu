@@ -22,7 +22,7 @@ const create = val => {
 
 // Update stream data and all dependents with a new val
 const update = (streamData, val) => {
-  streamData.ts = performance.now()
+  streamData.ts = Date.now()// performance.now()
   streamData.val = val
   streamData.dependents.forEach(fn => fn(val))
 }
@@ -121,6 +121,12 @@ const scanMerge = curryN(2, (streams, accum) => {
   return newS
 })
 
+// Given a stream of updater functions, apply each function to the accumulator
+const scanApply = curryN(2, (stream, accum) => {
+  checkStreamType(stream, 'scanApply')
+  return scan((a, fn) => fn(a), accum, stream)
+})
+
 // Create a stream that has val every time 'stream' emits anything
 const always = curryN(2, (val, stream) => {
   checkStreamType(stream, 'always')
@@ -213,23 +219,24 @@ const afterSilence = (ms, stream) => {
   return newS
 }
 
-const fromEvent = (event, node) => {
+const fromEvent = curryN(2, (event, node) => {
   const s = create()
   node.addEventListener(event, s)
   return s
-}
+})
 
 const model = fn => {
-  const proxy = new Proxy({}, {
-    get: (target, name) => name in target ? target[name] : target[name] = create()
-  })
-  const output = fn(proxy)
-  return {input: proxy, output}
+  const get = (obj, n) => n in obj ? obj[n] : obj[n] = create()
+  const inputProxy = new Proxy({}, {get})
+  const output = fn(inputProxy)
+  let input = {}
+  for (let name in inputProxy) input[name] = inputProxy[name]
+  return {input, output}
 }
 
 const hasVal = stream => isStream(stream) && stream.data.ts !== undefined && stream.data.val !== undefined
 
 const isStream = (x) => typeof x === 'function' && x.__isStream
 
-module.exports = {create, map, merge, scan, buffer, filter, scanMerge, defaultTo, always, flatMap, delay, every, throttle, afterSilence, isStream, log, fromEvent, zip, model}
+module.exports = {create, map, merge, scan, buffer, filter, scanMerge, defaultTo, always, flatMap, delay, every, throttle, afterSilence, isStream, log, fromEvent, zip, model, scanApply}
 

@@ -1,134 +1,83 @@
 const curryN = require('ramda/src/curryN')
 const stream = require('../stream')
 
-function h (sel, options, children) {
-  if (options === undefined || children === undefined) {
-    throw new TypeError("Wrong argument types for `h` function: pass in a selector, an object of options, and child nodes")
+// Given a dom node and a vnode that have a stream of childnodes
+// update all the children for the dom node based on data in the vnode
+const syncChildren = (elm, vnode) => {
+  if (!elm || elm.nodeType !== 1) return elm
+  for (let i = 0; i < vnode.children.length; ++i) {
+    let child = elm.childNodes[i]
+    let vchild = getVal(vnode.children[i])
+    if (!child) elm.appendChild(createElm(vnode.children[i]))
+    else if (child.id && vchild.props && child.id !== String(getVal(vchild.props.id))) {
+      elm.removeChild(child)
+    } else updateElm(child)(vchild)
   }
-  const {tagName, selClass} = parseSelector(sel)
-  var elm = document.createElement(tagName)
-
-  // Set inner content / children
-  handleChildren(elm, children)  
-
-  // Set classes
-  var classes = options.classes || {}
-  setClassName(elm, selClass, classes)
-  for (var name in classes) {
-    if (stream.isStream(classes[name])) {
-      stream.map(() => setClassName(elm, selClass, classes), classes[name])
-    }
+  // remove extras
+  for (let i = vnode.children.length; i < elm.childNodes.length; ++i) {
+    elm.removeChild(elm.lastChild)
   }
-
-  // Set props
-  var props = options.props || {}
-  assignProps(elm, props)
-  for (var propName in props) {
-    if(stream.isStream(props[propName])) {
-      stream.map(() => assignProps(elm, props), props[propName])
-    }
-  }
-  
-  // Set attributes
-  var attrs = options.attrs || {}
-  setAttrs(elm, attrs)
-  for (var attrName in attrs) {
-    if(stream.isStream(attrs[attrName])) {
-      stream.map(() => setAttrs(elm, attrs), attrs[attrName])
-    }
-  }
-
-  // Add event handlers
-  if (options.on) {
-    for (var event in options.on) {
-      elm.addEventListener(event, options.on[event])
-    }
-  }
-
   return elm
 }
 
-// Parse a selector string with class names like div.x.y
-function parseSelector (str) {
-  const bits = str.split('.')
-  const tagName = bits[0]
-  const selClass = bits[1] ? bits.slice(1).join(' ') : '' 
-  return {tagName, selClass}
-}
+const getVal = v => stream.isStream(v) ? v() : v
 
-// Set all the class names for an element
-function setClassName (elm, selClass, classes) {
-  var names = []
-  for (var name in classes) {
-    var p = classes[name]
-    if (getVal(p)) names.push(name)
+// Update a DOM node given a set of properties and attributes
+const updateElm = elm => vnode => {
+  if (elm.nodeType === 3 && elm.textContent !== vnode) {
+    elm.textContent = String(vnode)
+    return elm
   }
-  elm.className = [selClass].concat(names).join(' ')
-}
-
-// Set properties on the dom element
-function assignProps (elm, props) {
-  for (var propName in props) {
-    var v = props[propName]
-    elm[propName] = getVal(v)
-  }
-}
-
-// Set attributes for an element using setAttribute
-// Remove attributes with removeAttribute if the value is undefined
-function setAttrs (elm, attrs) {
-  for (var attrName in attrs) {
-    var attr = attrs[attrName]
-    var v = getVal(attr)
-    if (v === undefined) elm.removeAttribute(attrName)
-    else elm.setAttribute(attrName, v)
-  }
-}
-
-// Update all the children for an element
-function handleChildren (elm, cs) {
-  if (!Array.isArray(cs)) cs = [cs]
-  for (let i = 0; i < cs.length; ++i) {
-    const val = cs[i]
-    if (stream.isStream(val)) {
-      stream.scan(updateChildren(elm, i), 0, val)
+  const inNode = n => vnode.hasOwnProperty(n)
+  for (let n in vnode.props || {}) elm[n] = getVal(vnode.props[n])
+  for (let n in vnode.attrs || {}) {
+    if (vnode.attrs[n] === undefined || vnode.attrs[n] === null) {
+      elm.removeAttribute(n)
+    } else {
+      elm.setAttribute(n, getVal(vnode.attrs[n]))
     }
-    updateChildren(elm, i)(0, getVal(val))
   }
+  for (let n in vnode.dataset || {}) elm.dataset[n] = vnode.dataset[n]
+  return elm
 }
 
-// Update *all* children for a node
-const updateChildren = (parent, idx) => (prevLen, children) => {
-  if (!Array.isArray(children)) children = [children]
-
-  // Append all children into a document fragment
-  const newFrag = document.createDocumentFragment()
-  for (let i = 0; i < children.length; ++i) {
-    newFrag.appendChild(toNode(children[i]))
+const createElm = (vnode) => {
+  const val = getVal(vnode)
+  let elm
+  if (typeof val === 'string' || typeof val === 'number') {
+    elm = document.createTextNode(String(val))
+  } else {
+    if (!val.tag) throw new TypeError("Uzu node must have a tag property")
+    elm = document.createElement(val.tag)
   }
+  
+  if (stream.isStream(vnode)) stream.map(updateElm(elm), vnode)
+  else updateElm(elm)(val)
 
-  for (let i = idx; newFrag.childNodes.length > 0; ++i) {
-    const older = parent.childNodes[i]
-    const newer = newFrag.firstChild
-    if (older) parent.replaceChild(newer, older)
-    else parent.appendChild(newer)
+  for (let n in val.props || {}) {
+    if (stream.isStream(val[n])) {
+      let updater = {props: { [n]: val[n] }}
+      stream.map(() => updateElm(elm)(updater), val.props[n])
+    }
   }
- 
-  // Remove extras
-  for (let i = idx + children.length; i < prevLen; ++i) {
-    parent.removeChild(parent.childNodes[i])
+  if (val.dataset) {
+    for (let n in val.dataset) {
+      if (stream.isStream(val.dataset[n])) {
+        let updater = {dataset: { [n]: v }}
+        stream.map(v => updateElm(elm)(updater), val.dataset[n])
+      }
+    }
   }
-
-  return children.length
+  if (val.children) {
+    if (stream.isStream(val.children)) {
+      stream.map(v => syncChildren(elm, {children: v}), val.children)
+    } else {
+      val.children.forEach(child => elm.appendChild(createElm(child)))
+    }
+  }
+  for (let n in val.on || {}) elm.addEventListener(n, val.on[n])
+  return elm
 }
 
-// Convert a value into a node, if it's not already a node
-function toNode (val) {
-  if(val && val.nodeType && val.nodeType > 0) return val
-  return document.createTextNode(val)
-}
+module.exports = createElm
 
-// Get a value from a plain value OR a stream
-const getVal = val => stream.isStream(val) ? val() : val
-
-module.exports = curryN(3, h)

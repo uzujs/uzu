@@ -21,6 +21,7 @@
   },
   "homepage": "https://github.com/uzujs/uzu#readme",
   "dependencies": {
+    "morphdom": "2.3.3",
     "ramda": "0.23.0"
   },
   "devDependencies": {
