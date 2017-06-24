@@ -40,6 +40,12 @@ const view = counter => ({
     , btn(counter.input.reset, 'Reset')
     ]
   })
+  
+const btn = (input, text) => ({
+    tag: 'button'
+  , on: {click: input}
+  , children: [text]
+  })
 
 const render = () => {
   const vtree = view(stream.model(Counter(0)))
