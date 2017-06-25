@@ -31,10 +31,9 @@ const Counter = initial => ({increment, decrement, reset}) =>
   
 const view = counter => ({
     tag: 'div'
-  , props: {id: stream.map(R.prop('id'), counter.output)}
   , children: [
       'Current count is '
-    , stream.map(R.prop('count'), counter.output)
+    , counter.output
     , btn(counter.input.increment, 'Increment')
     , btn(counter.input.decrement, 'Decrement')
     , btn(counter.input.reset, 'Reset')
