@@ -8,7 +8,7 @@ Uzu is a library for creating dynamic UI components on the web with javascript a
 
 Uzu consists of two main parts:
 * A [`stream`](/stream) library for managing data that changes over time
-* An [`dom`](/html) library and for generating DOM elements from plain-JS objects and streams
+* An [`dom`](/dom) library and for generating DOM elements from plain-JS objects and streams
 
 ### Quick Examples
 
@@ -18,7 +18,7 @@ Here is a quick counter component to get you started
 
 ```js
 const stream = require('uzu/stream')
-const createElm = require('uzu/html')
+const createElm = require('uzu/dom)
 const R = require('ramda')
 
 // UI logic for a single counter

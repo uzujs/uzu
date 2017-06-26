@@ -1,5 +1,5 @@
 const R = require('ramda')
-const createElm = require('../html')
+const createElm = require('../dom')
 const stream = require('../stream')
 const map = R.addIndex(R.map)
 

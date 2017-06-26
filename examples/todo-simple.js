@@ -1,5 +1,5 @@
 const R = require('ramda')
-const createElm = require('../html')
+const createElm = require('../dom')
 const stream = require('../stream')
 
 // addNew and finish are streams of event objects

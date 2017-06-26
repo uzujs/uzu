@@ -1,6 +1,6 @@
 # Creating DOM elements in Uzu
 
-You can create DOM elements from javascript by creating objects with the following keys:
+You can create DOM elements with objects that have the following keys:
 
 - `tag`: tagName of the element (div, p, span, etc)
 - `props`: a nested object of property assignments you want to make (value, disabled, etc)

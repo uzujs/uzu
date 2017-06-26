@@ -1,4 +1,4 @@
-const createElm = require('../html')
+const createElm = require('../dom')
 const stream = require('../stream')
 
 const Hoverer = ({hover}) => 
