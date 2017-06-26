@@ -17,8 +17,8 @@ View the [/examples](/examples) folder to view some working mini-apps. You can r
 Here is a quick counter component to get you started
 
 ```js
+const createElm = require('uzu/dom')
 const stream = require('uzu/stream')
-const createElm = require('uzu/dom)
 const R = require('ramda')
 
 // UI logic for a single counter
