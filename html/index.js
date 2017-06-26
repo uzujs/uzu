@@ -9,11 +9,11 @@ const syncChildren = (elm, vnode) => {
     let child = elm.childNodes[i]
     let vchild = getVal(vnode.children[i])
     if (!child) elm.appendChild(createElm(vnode.children[i]))
-    else if (child.id && vchild.props && child.id !== String(getVal(vchild.props.id))) {
+    else if (String(child.dataset.id) !== String(getVal(vchild.dataset.id))) {
       elm.removeChild(child)
-    } else updateElm(child)(vchild)
+    }
   }
-  // remove extras
+  // remove extras from the end
   for (let i = vnode.children.length; i < elm.childNodes.length; ++i) {
     elm.removeChild(elm.lastChild)
   }
@@ -21,6 +21,7 @@ const syncChildren = (elm, vnode) => {
 }
 
 const getVal = v => stream.isStream(v) ? v() : v
+const vnodeKeys = ['props', 'dataset', 'attrs']
 
 // Update a DOM node given a set of properties and attributes
 const updateElm = elm => vnode => {
@@ -28,56 +29,52 @@ const updateElm = elm => vnode => {
     elm.textContent = String(vnode)
     return elm
   }
-  const inNode = n => vnode.hasOwnProperty(n)
-  for (let n in vnode.props || {}) elm[n] = getVal(vnode.props[n])
-  for (let n in vnode.attrs || {}) {
-    if (vnode.attrs[n] === undefined || vnode.attrs[n] === null) {
-      elm.removeAttribute(n)
-    } else {
-      elm.setAttribute(n, getVal(vnode.attrs[n]))
-    }
+  const updaters = {
+    props: (n, val) => elm[n] = val
+  , attrs: (n, val) => val === undefined || val === null
+      ? elm.removeAttribute(n)
+      : elm.setAttribute(n, val)
+  , dataset: (n, val) => elm.dataset[n] = val
   }
-  for (let n in vnode.dataset || {}) elm.dataset[n] = vnode.dataset[n]
+
+  vnodeKeys.filter(k => vnode.hasOwnProperty(k)).forEach(k => {
+    for (let n in vnode[k]) updaters[k](n, getVal(vnode[k][n]))
+  })
   return elm
 }
 
 const createElm = (vnode) => {
-  const val = getVal(vnode)
-  let elm
-  if (typeof val === 'string' || typeof val === 'number') {
-    elm = document.createTextNode(String(val))
-  } else {
-    if (!val.tag) throw new TypeError("Uzu node must have a tag property")
-    elm = document.createElement(val.tag)
+  if (stream.isStream(vnode)) {
+    let elm = createElm(vnode())
+    stream.map(updateElm(elm), vnode)
+    return elm
+  } else if (typeof vnode !== 'object') {
+    return document.createTextNode(String(vnode))
+  } else if (vnode.nodeType > 0) {
+    return vnode
   }
-  
-  if (stream.isStream(vnode)) stream.map(updateElm(elm), vnode)
-  else updateElm(elm)(val)
 
-  for (let n in val.props || {}) {
-    if (stream.isStream(val[n])) {
-      let updater = {props: { [n]: val[n] }}
-      stream.map(() => updateElm(elm)(updater), val.props[n])
-    }
-  }
-  if (val.dataset) {
-    for (let n in val.dataset) {
-      if (stream.isStream(val.dataset[n])) {
-        let updater = {dataset: { [n]: v }}
-        stream.map(v => updateElm(elm)(updater), val.dataset[n])
+  if (!vnode.tag) throw new TypeError("Uzu node must have a tag property")
+  let elm = document.createElement(vnode.tag)
+  updateElm(elm)(vnode)
+
+  vnodeKeys.filter(k => vnode.hasOwnProperty(k)).forEach(k => {
+    for (let n in vnode[k]) {
+      if (stream.isStream(vnode[k][n])) {
+        let updater = { [k]: { [n]: vnode[k][n] }}
+        stream.map(() => updateElm(elm)(updater), vnode[k][n])
       }
     }
-  }
-  if (val.children) {
-    if (stream.isStream(val.children)) {
-      stream.map(v => syncChildren(elm, {children: v}), val.children)
+  })
+  if (vnode.children) {
+    if (stream.isStream(vnode.children)) {
+      stream.map(v => syncChildren(elm, {children: v}), vnode.children)
     } else {
-      val.children.forEach(child => elm.appendChild(createElm(child)))
+      vnode.children.forEach(child => elm.appendChild(createElm(child)))
     }
   }
-  for (let n in val.on || {}) elm.addEventListener(n, val.on[n])
+  for (let n in vnode.on || {}) elm.addEventListener(n, vnode.on[n])
   return elm
 }
 
 module.exports = createElm
-

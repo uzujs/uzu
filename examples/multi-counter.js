@@ -14,6 +14,7 @@ const Counter = initial => ({increment, decrement, reset}) =>
 )
 var id = 0
 const createCount = count => ({count, id: id++})
+// Apply some arithmetic function to a count object 
 const applyToCount = fn => count => R.assoc('count', fn(count.count), count)
 
 // UI logic for multiple counters
@@ -25,7 +26,7 @@ const CounterList = initial => ({add, rem}) =>
 
 // Remove a specific counter based on its index
 const removeCounter = (cs, ev) => {
-  const id = Number(ev.currentTarget.parentNode.id)
+  const id = Number(ev.currentTarget.parentNode.dataset.id)
   const idx = R.findIndex(c => c.output().id === id, cs)
   return R.remove(idx, 1, cs)
 }
@@ -44,7 +45,7 @@ const appendCounter = (cs, ev) => {
 const counterView = counterList => counter => {
   return {
     tag: 'div'
-  , props: {id: stream.map(R.prop('id'), counter.output)}
+  , dataset: {id: stream.map(R.prop('id'), counter.output)}
   , children: [
       'Current count is '
     , stream.map(R.prop('count'), counter.output)
@@ -57,16 +58,16 @@ const counterView = counterList => counter => {
 }
 
 const btn = (input, text) => {
-  return {
+  return createElm({
     tag: 'button'
   , on: {click: input}
   , children: [text]
-  }
+  })
 }
 
 const view = counterList => {
   // counterList.output is a stream of arrays of counter model instances
-  // we map over each model instance and apply counterView to it
+  // we map over counter and apply counterView to it
   const counterViews = stream.map(R.map(counterView(counterList)), counterList.output)
   return {
     tag: 'div'
@@ -94,3 +95,4 @@ const render = () => {
   document.body.appendChild(elm)  
 }
 render()
+
