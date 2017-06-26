@@ -46,6 +46,7 @@ const counterView = counterList => counter => {
   return {
     tag: 'div'
   , dataset: {id: stream.map(R.prop('id'), counter.output)}
+  , style: {color: 'blue'}
   , children: [
       'Current count is '
     , stream.map(R.prop('count'), counter.output)
@@ -58,11 +59,11 @@ const counterView = counterList => counter => {
 }
 
 const btn = (input, text) => {
-  return createElm({
+  return {
     tag: 'button'
   , on: {click: input}
   , children: [text]
-  })
+  }
 }
 
 const view = counterList => {

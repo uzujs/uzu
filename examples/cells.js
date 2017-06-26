@@ -1,4 +1,4 @@
-const h = require('../html')
+const createElm = require('../html')
 const stream = require('../stream')
 const R = require('ramda')
 
@@ -9,45 +9,47 @@ const height = 20
 const initial = R.repeat(R.repeat('', width), height)
 
 // Top-level DOM generator function
-const view = (sheet) => {
-  return h('div', {}, [
-    h('p', {}, 'Below is a simple spreadsheet. Cells can contain plain values or javascript expressions that refer to other cells.')
-  , h('p', {}, 'If a cell has a number format it will be interpreted as a number, and otherwise as a string.')
-  , table(sheet)
-  ])
-}
+const view = (sheet) => ({
+    tag: 'div'
+  , children: [
+      {tag: 'p', children: ['Below is a simple spreadsheet. Cells can contain plain values or javascript expressions that refer to other cells.']}
+    , {tag: 'p', children: ['If a cell has a number format it will be interpreted as a number, and otherwise as a string.']}
+    , table(sheet)
+    ]
+  })
 
 // Generate the dom for the spreadsheet's table
 // Sheet is a stream of matrixes of cell values
 const table = (spreadSheet) => {
-  const th = h('th', {})
+  const th = n => ({tag: 'th', children: [n]})
   // Take each output from the spreadSheet model and create a row of values
   const rows = stream.map(sheet => sheet.values.map(makeRow(spreadSheet)), spreadSheet.output)
-  return h('table', {}, [
-    h('thead', {}, [h('tr', {}, [th(''), th('A'), th('B'), th('C'), th('D')])])
-  , h('tbody', {}, rows)
-  ])
+  return {
+    tag: 'table'
+  , children: [
+      {tag: 'thead', children: [{tag: 'tr', children: [th(''), th('A'), th('B'), th('C'), th('D')]}]}
+    , {tag: 'tbody', children: rows}
+   ]
+  }
 }
 
 // Given a sheet (output from SpreadSheet model), a row of values, and the index of that row
 // Then return a table row of the formula input, value, and handle change events
 const makeRow = spreadSheet => (row, rowIdx) =>
-  h('tr', {}, 
-    [h('td', {}, [h('strong', {}, String(rowIdx))])]
-    .concat(row.map((val, colIdx) => td(spreadSheet, val, rowIdx, colIdx)))
-  )
+  ({
+    tag: 'tr'
+  , children: []
+  })
 
 // A single cell with input and value
-const td = (spreadSheet, val, rowIdx, colIdx) =>
-  h('td', {}, [
-    h('input', {
-      on: {
-        change: ev => spreadSheet.input.change([ev.currentTarget.value, rowIdx, colIdx])
-      }
-    }, [])
-  , h('span', {}, `= ${val}`)
-  , h('input', {props: {type: 'checkbox'}}, [])
-  ])
+const td = (spreadSheet, val, rowIdx, colIdx) => ({
+  tag: 'td'
+, children: [
+    {tag: 'input', on: {change: ev => spreadSheet.input.change([ev.currentTarget.value, rowIdx, colIdx])}}
+  , {tag: 'span', children: ['val']}
+  , {tag: 'input', props: {type: 'checkbox'}}
+  ]
+})
 
 // -- UI Logic below
 
@@ -79,7 +81,8 @@ const findRefs = R.match(refRegex)
 
 const render = () => {
   const model = stream.model(SpreadSheet(initial))
-  const div = view(model)
+  const vnode = view(model)
+  const div = createElm(vnode)
   document.body.appendChild(div)
 }
 render()

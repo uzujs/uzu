@@ -1,5 +1,5 @@
 const R = require('ramda')
-const {append, parent, bind, transform} = require('../html')
+const createElm = require('../html')
 const stream = require('../stream')
 
 // Utilities for tempConvert
@@ -10,13 +10,13 @@ const round = n => Math.round(n * 100) / 100
 
 const Temps = ({inputCelsius, inputFahren}) => {
   const celsius = R.compose(
-    stream.map(n => ({value: n}))
+    stream.defaultTo(0)
   , stream.map(round)
   , stream.map(convertToCelsius)
   , stream.map(getNumValue)
   )(inputFahren)
   const fahren = R.compose(
-    stream.map(n => ({value: n}))
+    stream.defaultTo(0)
   , stream.map(round)
   , stream.map(convertToFahren)
   , stream.map(getNumValue)
@@ -25,20 +25,17 @@ const Temps = ({inputCelsius, inputFahren}) => {
 }
 
 const view = (temps) => {
-  const input = R.pipe(append('input'), transform({value: 0, type: 'number'}))
-  const celsiusInput = R.pipe(input, bind('input', temps.input.inputCelsius))
-  const fahrenInput = R.pipe(input, bind('input', temps.input.inputFahren))
-  return R.pipe(
-    append('div')
-  , append('label'), transform({textContent: 'Celsius'})
-  , parent
-  , celsiusInput, transform(temps.output.celsius)
-  , parent
-  , append('label'), transform({textContent: 'Fahrenheit'})
-  , parent
-  , fahrenInput, transform(temps.output.fahren)
-  )
+  return {
+    tag: 'div'
+  , children: [
+      {tag: 'label', children: [ 'Celsius']}
+    , {tag: 'input', on: {input: temps.input.inputCelsius}, props: {value: temps.output.celsius, type: 'number'}}
+    , {tag: 'label', children: ['Fahrenheit']}
+    , {tag: 'input', on: {input: temps.input.inputFahren}, props: {value: temps.output.fahren, type: 'number'}}
+    ]
+  }
 }
 
-const elmFn = view(stream.model(Temps))
-elmFn(document.body)
+const vnode = view(stream.model(Temps))
+const div = createElm(vnode)
+document.body.appendChild(div)
