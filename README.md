@@ -1,9 +1,10 @@
+# :cyclone: uzu :cyclone:
 
-# ui system prototype
+Uzu is an ultra simple, expressive, and modular UI system for the web. It works with the plain DOM api and is inspired by state automatas, streams, and event emitters. 
 
-This is an ultra minimalistic UI system inspired by state automatas and streams. This repo is a quick n dirty prototype for demo/discussion purposes. States are simple observable data containers that use node's EventEmitter. They can be used to generate dynamic HTML (and svg and canvas) in a simpler (and possibly faster) way than virtual DOM.
+Data in uzu is controlled with simple state containers, which are observable data structures that use node's builtin EventEmitter. They can be used to generate dynamic HTML (and svg and canvas) in a simpler (and possibly faster) way than virtual DOM. [The code](./index.js) for states is quick to read. Uzu provides some extra helper functions for rendering to the dom or canvas.
 
-Examples:
+Examples!
 * [todo MVC](/examples/todo.js) (no styling)
 * 7guis ([info](https://github.com/eugenkiss/7guis/wiki))
    * [counter](/examples/7guis/counter.js)
@@ -66,7 +67,7 @@ bc.on('count', (c) => console.log('count updated to', c))
 
 # dom
 
-You can create views by generating plain HTML elements. One way to make this easier is to use something like [bel](https://github.com/shama/bel).
+You can create views by making plain HTML elements. One way to make this easier is to use something like [bel](https://github.com/shama/bel).
 
 For most needs, like element attributes, properties, style, classes, text content, you can simply use the `on` function to make changes to the html elements.
 
