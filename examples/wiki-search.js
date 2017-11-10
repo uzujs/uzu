@@ -2,9 +2,9 @@ const html = require('bel')
 const state = require('../index')
 const dom = require('../dom')
 
-const apiCall = (search) =>
-  fetch("https://en.wikipedia.org/w/api.php?action=query&format=json&gsrlimit=20&generator=search&origin=*&gsrsearch=" + search, {mode: 'cors'})
-    .then(res => res.json())
+const urlStr = 'https://en.wikipedia.org/w/api.php?action=query&format=json&gsrlimit=20&generator=search&origin=*&gsrsearch='
+
+const apiCall = (search) => window.fetch(urlStr + search, {mode: 'cors'}).then(res => res.json())
 
 const performSearch = wikiSearch => ev => {
   wikiSearch.update({loading: true})

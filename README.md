@@ -152,35 +152,33 @@ const tabs = dom.route({
 
 [See here for an undo-redo helper module](/undo-redo)
 
-# Debug logging
-
-Set the following in your browser console to enable some debugging messages:
-* `localStorage.debug = "uzu:*"` to show all debugging messages
-* `localStorage.debug = "uzu:state"` to show state-related messages
-* `localStorage.debug = "uzu:dom"` to show dom-related messages
-
 # Patterns & philosophy
 
 ## Modularity
 
 Uzu is designed with different layers of modularity in mind.
 
+* The same state can be initialized using different functions -- not bound to a single constructor
+* Logic that changes state is decoupled from the state object and the initializer
+* Views are decoupled from states; the same states can be represented by many different views
+* States and logic can optionally be encapsulated within a view
+* Views can take any parameters that you want, and any number of states
+* New states or other data can be returned by views, in addition to the dom
+* The same state object can span many different views and easily be used in different parts of the page
+
 ### Data & domain logic
 
-Data constructors and functions over data can live in their own files and their own modules and can be reused for different views. The principles are:
-* State and domain logic can be decoupled from views -- the same set of state functions can be represented by a bunch of different views
-* The same type of state object could be constructed in many different ways by many functions --- we are not bound to a single constructor function
-* The same logic function can take different types of state objects, as long as the states have common attributes.
+State constructors and functions that change states can live in their own files and their own modules and can be reused for different views. Generall state constructors and logic do not need to live in the same file/module as the view functions; the view functions import the state modules.
 
 ### Views
 
 A typical view takes state objects as parameters and returns an HTMLElement. Views can also initialize new state objects, pass them down to other views, or even return any extra data along with the DOM nodes. This way, state can easily bubble up and down through your tree of view functions.
 
-View functions can use any library they want to generate plain [HTMLElements](https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement). `bel` is a good option, but any other library that generates DOM nodes would also work just fine!
+View functions can use any library they want to generate plain [HTMLElements](https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement). `bel` is a good option, but any other library that generates DOM nodes would be fully compatible!
 
 ### Using other libs
 
-You can freely use a lot of non-uzu libraries without special modifications, such as pell, pikaday, chart.js, etc, etc. As long as the library uses plain html, svg, or canvas, it is fully compatible -- no weird framework lock-in.
+You can freely use a lot of non-uzu, plain javascript libraries without special modifications, such as pell, pikaday, chart.js, etc, etc. As long as the library uses plain html, svg, or canvas, it is fully compatible -- no weird framework lock-in.
 
 #### Mixin views
 
@@ -200,7 +198,7 @@ function counterView (elem, startCount) {
 }
 ```
 
-This way, the user can use any of the following "templates" to pass into the `counterView` function:
+This way, the user can use any of the following div "templates" to pass into the `counterView` function. All three examples below are fully compatible with the `counterView` function and will get the same functionality.
 
 ```html
 <div class='counter1'>
@@ -230,5 +228,4 @@ Sometimes, you want to initialize and control some states, but you are fairly po
 * Activating a sidebar
 * Showing/hiding an input
 
-In these cases, it may be simplest to keep these states hidden inside the view functions where they are needed. As soon as you realize you want to reuse the code elsewhere in your app, you can start to move the logic into their own modules.
-
+In these cases, it may be simplest to keep these states hidden inside the view functions where they are needed. As soon as you realize you want to reuse the code elsewhere in your app, you can start to tweak the code to un-hide these states.
