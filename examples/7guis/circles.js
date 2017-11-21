@@ -1,16 +1,16 @@
-const state = require('../../index')
+const model = require('../../model')
 const html = require('bel')
 const dom = require('../../dom')
 const undoRedo = require('../../undo-redo')
 
 var id = 1
 function Circle (x, y, radius) {
-  return state({radius, x, y, id: id++, selected: false})
+  return model({radius, x, y, id: id++, selected: false})
 }
 
 function CircleCollection () {
   const defaultDiameter = 100
-  return state({
+  return model({
     circles: [],
     history: undoRedo.History(),
     selected: null,
@@ -104,7 +104,7 @@ function view (collection) {
   const circles = dom.childSync({
     view: circleView(collection),
     container: g,
-    state: collection,
+    model: collection,
     prop: 'circles'
   })
   const svg = html`<svg onclick=${createOrSelect(collection)}> ${circles} </svg>`

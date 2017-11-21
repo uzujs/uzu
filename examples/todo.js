@@ -1,15 +1,14 @@
-'use strict'
-const state = require('../index')
+const model = require('../model')
 const dom = require('../dom')
 const html = require('bel')
 
 var uid = 0
 function Task (name) {
-  return state({name: name, id: uid++, completed: false, hidden: false})
+  return model({name: name, id: uid++, completed: false, hidden: false})
 }
 
 function List () {
-  return state({tasks: [], remaining: 0})
+  return model({tasks: [], remaining: 0})
 }
 
 // append a new task to a List after a form submit
@@ -63,7 +62,7 @@ function view (list) {
   const tasks = dom.childSync({
     view: taskView(list),
     container: 'div',
-    state: list,
+    model: list,
     prop: 'tasks'
   })
 

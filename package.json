@@ -4,7 +4,7 @@
   "description": "Simple UI components",
   "main": "index.js",
   "scripts": {
-    "test": "dependency-check package.json && standard && browserify test/index.js | tape-run --render=tap-spec"
+    "test": "dependency-check package.json && standard && browserify test/index.js | tape-run"
   },
   "author": "jayrbolton@gmail.com",
   "license": "MIT",
@@ -13,7 +13,6 @@
     "browserify": "^14.5.0",
     "dependency-check": "^2.9.1",
     "standard": "^10.0.3",
-    "tap-spec": "^4.1.1",
     "tape": "^4.8.0",
     "tape-run": "^3.0.0"
   },

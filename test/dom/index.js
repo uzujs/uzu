@@ -1,14 +1,14 @@
 const html = require('bel')
-const state = require('../../')
+const model = require('../../model')
 const dom = require('../../dom')
 const test = require('tape')
 
 var id = 0
 function Elem (name) {
-  return state({name: name, id: id++})
+  return model({name: name, id: id++})
 }
 function List (elems) {
-  return state({elems: elems || []})
+  return model({elems: elems || []})
 }
 
 function childView (elem, idx) {
@@ -21,7 +21,7 @@ function listView (list) {
   return dom.childSync({
     view: childView,
     container: 'ul',
-    state: list,
+    model: list,
     prop: 'elems'
   })
 }
@@ -77,7 +77,7 @@ test('childSync appends, removes, and reorders children', t => {
 // route
 
 function Router (p) {
-  return state({page: p})
+  return model({page: p})
 }
 
 function routeView (router) {
@@ -86,7 +86,7 @@ function routeView (router) {
     return html` <p> ${name} </p> `
   }
   return dom.route({
-    state: router,
+    model: router,
     prop: 'page',
     container: 'div',
     routes: {

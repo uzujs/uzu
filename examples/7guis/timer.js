@@ -1,8 +1,8 @@
-const state = require('../../index')
+const model = require('../../model')
 const html = require('bel')
 
 function Timer () {
-  return state({
+  return model({
     elapsedMs: 0,
     duration: 10000,
     running: false,

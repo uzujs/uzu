@@ -1,8 +1,8 @@
-const state = require('../../index')
+const model = require('../../model')
 const html = require('bel')
 
 function Flight () {
-  return state({
+  return model({
     way: 'one-way', // one-way | round-trip
     startErr: false,
     returnErr: false,

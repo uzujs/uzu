@@ -1,7 +1,7 @@
-var state = require('../')
+var model = require('../model')
 
 function History () {
-  return state({redoStack: [], undoStack: []})
+  return model({redoStack: [], undoStack: []})
 }
 
 // A new user action is performed; user can no longer redo

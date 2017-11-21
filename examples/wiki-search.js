@@ -1,5 +1,5 @@
 const html = require('bel')
-const state = require('../index')
+const model = require('../model')
 const dom = require('../dom')
 
 const urlStr = 'https://en.wikipedia.org/w/api.php?action=query&format=json&gsrlimit=20&generator=search&origin=*&gsrsearch='
@@ -28,12 +28,12 @@ const performSearch = wikiSearch => ev => {
 }
 
 const view = () => {
-  const wikiSearch = state({results: [], loading: false})
+  const wikiSearch = model({results: [], loading: false})
 
   const rows = dom.childSync({
     view: rowView,
     container: 'tbody',
-    state: wikiSearch,
+    model: wikiSearch,
     prop: 'results'
   })
 

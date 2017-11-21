@@ -1,19 +1,19 @@
-const state = require('../')
+const model = require('../model')
 const dom = require('../dom')
 const html = require('bel')
 
 // Contrived example to show the dom.route function
 
 function view () {
-  const tabState = state({page: 'a'})
+  const tabModel = model({page: 'a'})
   const tabs = dom.route({
-    state: tabState,
+    model: tabModel,
     prop: 'page',
     container: 'div',
     routes: {
-      a: viewA(tabState),
-      b: viewB(tabState),
-      c: viewC(tabState)
+      a: viewA(tabModel),
+      b: viewB(tabModel),
+      c: viewC(tabModel)
     }
   })
 
@@ -25,19 +25,19 @@ function view () {
   `
 }
 
-function navBtn (tabState, name) {
-  tabState.on('page', p => console.log(`page changed to ${p} from btn ${name}`))
-  return html`<button onclick=${ev => tabState.update({page: name})}> Show view ${name} </button>`
+function navBtn (tabModel, name) {
+  tabModel.on('page', p => console.log(`page changed to ${p} from btn ${name}`))
+  return html`<button onclick=${ev => tabModel.update({page: name})}> Show view ${name} </button>`
 }
 
-const viewA = tabState => () => {
-  return html`<p> Welcome to View A. ${navBtn(tabState, 'b')} </p>`
+const viewA = tabModel => () => {
+  return html`<p> Welcome to View A. ${navBtn(tabModel, 'b')} </p>`
 }
 
-const viewB = tabState => () =>
-  html`<p> Hello from View B. ${navBtn(tabState, 'c')} </p>`
+const viewB = tabModel => () =>
+  html`<p> Hello from View B. ${navBtn(tabModel, 'c')} </p>`
 
-const viewC = tabState => () =>
-  html`<p> Buenos dias, esto pagina es vista C. ${navBtn(tabState, 'a')} </p>`
+const viewC = tabModel => () =>
+  html`<p> Buenos dias, esto pagina es vista C. ${navBtn(tabModel, 'a')} </p>`
 
 document.body.appendChild(view())

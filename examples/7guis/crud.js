@@ -1,12 +1,10 @@
-const state = require('../../index')
+const model = require('../../model')
 const html = require('bel')
 const dom = require('../../dom')
 
-window.state = state
-
 var uid = 0
 function Person (last, first) {
-  return state({
+  return model({
     last,
     first,
     hidden: false,
@@ -24,7 +22,7 @@ function searchPerson (search, person, people) {
 }
 
 function People (defaults) {
-  return state({
+  return model({
     arr: defaults,
     selected: null,
     currentSearch: ''
@@ -92,7 +90,7 @@ function view (people) {
   const peopleDivs = dom.childSync({
     view: peopleDiv(people),
     container: 'div',
-    state: people,
+    model: people,
     prop: 'arr'
   })
 

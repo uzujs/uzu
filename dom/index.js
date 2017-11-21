@@ -6,8 +6,8 @@ module.exports = {}
 module.exports.childSync = function childSync (options) {
   assert.strictEqual(typeof options.view, 'function', 'Missing option: pass a function in the .view property')
   assert(options.container, 'Missing option: pass a .container property (can be a string or HTMLElement)')
-  assert(options.state && typeof options.state === 'object', 'pass in a state object in the .state property')
-  assert.strictEqual(typeof options.prop, 'string', 'pass in a state property string in the .prop property')
+  assert(options.model && typeof options.model === 'object', 'pass in a model object in the .model property')
+  assert.strictEqual(typeof options.prop, 'string', 'pass in a model property string in the .prop property')
 
   // Convert the container to a basic dom if it is a string tagname
   if (typeof options.container === 'string') {
@@ -15,11 +15,11 @@ module.exports.childSync = function childSync (options) {
   }
   var container = options.container
   var inserted = {} // track already-inserted dom nodes based on object id
-  options.state.on(options.prop, update)
+  options.model.on(options.prop, update)
 
   // Given a new set of data, update the child dom elements
   function update () {
-    var arr = options.state[options.prop]
+    var arr = options.model[options.prop]
     for (var i = 0; i < arr.length; ++i) {
       var elem = arr[i]
       if (!elem.hasOwnProperty('id')) {
@@ -58,7 +58,7 @@ module.exports.childSync = function childSync (options) {
 }
 
 module.exports.route = function route (options) {
-  assert.strictEqual(typeof options.state, 'object', 'pass in a state in the .state property')
+  assert.strictEqual(typeof options.model, 'object', 'pass in a model in the .model property')
   assert.strictEqual(typeof options.prop, 'string', 'pass in a property string in the .prop property')
   assert(options.container, 'pass in a .container property in options -- can be a string or HTMLElement')
   assert(typeof options.routes, 'object', 'pass in a routes object in the .routes property')
@@ -66,7 +66,7 @@ module.exports.route = function route (options) {
   if (typeof options.container === 'string') options.container = document.createElement(options.container)
   var listeners = []
   var prevPage = null
-  options.state.on(options.prop, function (p) {
+  options.model.on(options.prop, function (p) {
     if (p === prevPage) return
     prevPage = p
     listeners.forEach(function (listener) {

@@ -1,10 +1,10 @@
 const dom = require('../dom')
 const html = require('bel')
-const state = require('../index')
+const model = require('../model')
 
 var uid = 0
 function Counter (initial, id) {
-  return state({count: initial, id: uid++})
+  return model({count: initial, id: uid++})
 }
 
 var counterActions = {
@@ -22,7 +22,7 @@ var counterActions = {
 }
 
 function CounterList (initial = []) {
-  return state({counters: initial.map(Counter)})
+  return model({counters: initial.map(Counter)})
 }
 
 var counterListActions = {
@@ -39,7 +39,7 @@ function listView (counterList) {
   const appendFn = ev => counterListActions.append(0, counterList)
   const appendBtn = html`<button onclick=${appendFn}> Add bean bag </button>`
   const counterElems = dom.childSync({
-    state: counterList,
+    model: counterList,
     prop: 'counters',
     container: 'div',
     view: counterViewWithRemove(counterList)

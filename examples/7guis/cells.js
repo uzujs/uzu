@@ -1,8 +1,8 @@
-const state = require('../../index')
+const model = require('../../model')
 const html = require('bel')
 
 function Cell (name) {
-  return state({
+  return model({
     name,
     input: null,
     output: null,
@@ -19,7 +19,7 @@ const opFunctions = {
   '/': (x, y) => x / y
 }
 
-// set a cell to have an error state: no output, no deps, etc
+// set a cell to have an error model: no output, no deps, etc
 const setErr = (cell) => cell.update({error: true, input: '', output: null, deps: []})
 
 // Check if a term in a cell formula is valid
@@ -30,7 +30,7 @@ const validTerm = (term) => {
 }
 
 function setInput (val, cell, sheet) {
-  cell.update({error: false}) // get rid of any error state right away
+  cell.update({error: false}) // get rid of any error model right away
   if (val === '') { // cleared out a cell to be blank
     cell.update({input: '', output: null, formulaFn: null, deps: []})
     return
@@ -115,7 +115,7 @@ function Sheet () {
       dependents[name] = []
     }
   }
-  return state({ rows, dict, dependents })
+  return model({ rows, dict, dependents })
 }
 
 function view (sheet) {
@@ -157,8 +157,8 @@ function view (sheet) {
 }
 
 function cellView (cell, sheet) {
-  // nested state to control the hiding/showing of the input and output text
-  const toggleHide = state({hidden: true})
+  // nested model to control the hiding/showing of the input and output text
+  const toggleHide = model({hidden: true})
   const changeInput = ev => {
     setInput(ev.currentTarget.value, cell, sheet)
     toggleHide.update({hidden: true}) // hide the input, show the output
