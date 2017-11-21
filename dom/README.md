@@ -8,7 +8,7 @@ The `dom` module also provides a `childSync` function that allows you to create 
 
 Unlike with virtual dom libraries, the view functions only get called once on pageload. Instead of diffing and patching entire trees, we listen to changes on state properties and make changes to dom elements directly using the browser's built-in HTMLElement and DOM Node API
 
-```
+```js
 const html = require('bel')
 const state = require('../index')
 
@@ -66,7 +66,7 @@ The `options` argument should be an object with these properties:
 
 `routes` should be an object where each key is a string (eg. page name, tab name, etc) and each value is a function that returns a DOM node.
 
-```
+```js
 const tabState = state({page: 'a'})
 const tabs = dom.route({
   state: tabState,

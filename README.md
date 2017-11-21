@@ -24,7 +24,6 @@ _Modules_
 * [multiple dynamic counters](/examples/counter-many.js)
 * [wikipedia search](/examples/wiki-search.js)
 
-
 # Patterns & philosophy
 
 ## Modularity
