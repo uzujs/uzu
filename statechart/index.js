@@ -38,7 +38,6 @@ function statechart (config) {
     if (typeof transitionArr[0] === 'string') {
       transitionArr = [events[name]]
     }
-    console.log('transitionarr', transitionArr)
     transitionArr.forEach(([fromState, toState]) => {
       transitions[name][fromState] = toState
     })
@@ -53,14 +52,15 @@ function statechart (config) {
     for (let name in chart.state) {
       if (chart.state[name] && transitions[eventName] && transitions[eventName][name]) {
         const dest = transitions[eventName][name]
-        if (handlers[name] && handlers[name][eventName]) {
-          handlers[name][eventName]()
-        }
+        if (notHandlers[name]) notHandlers[name]()
         delete chart.state[name]
         chart.state[dest] = true
         count++
         if (where[dest]) {
           chart.state[dest] = where[dest].state
+        }
+        if (handlers[dest]) {
+          handlers[dest]()
         }
       }
     }
@@ -69,24 +69,15 @@ function statechart (config) {
   }
 
   const handlers = {}
-  chart.when = function (cases) {
-    for (let stateName in cases) {
-      if (!stateObj.hasOwnProperty(stateName)) throw new Error('Invalid state name: ' + stateName)
-      if (where[stateName]) {
-        const nestedCases = {}
-        handlers[stateName] = {}
-        for (let name in cases[stateName]) {
-          if (transitions[name]) { // is event
-            handlers[stateName][name] = cases[stateName][name]
-          } else {
-            nestedCases[name] = cases[stateName][name]
-          }
-        }
-        where[stateName].when(nestedCases)
-      } else {
-        handlers[stateName] = cases[stateName]
-      }
-    }
+  chart.when = function (stateName, cb) {
+    handlers[stateName] = cb
+    if (chart.state[stateName]) cb()
+    return chart
+  }
+  const notHandlers = {}
+  chart.whenNot = function (stateName, cb) {
+    notHandlers[stateName] = cb
+    if (!chart.state[stateName]) cb()
     return chart
   }
 

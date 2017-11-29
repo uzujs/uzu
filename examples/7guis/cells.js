@@ -1,13 +1,19 @@
 const model = require('../../model')
 const html = require('bel')
-const statechart = require('../../machine')
+const statechart = require('../../statechart')
 
 function CellChart () {
   return statechart({
-    initial: {showingValue: true},
-    showingValue: {EDIT: 'editing'},
-    editing: {SET: 'showingValue', ERR: 'hasError'},
-    hasError: {EDIT: 'editing'}
+    states: ['showingValue', 'editing', 'hasError'],
+    events: {
+      EDIT: [
+        ['showingValue', 'editing'],
+        ['hasErr', 'editing']
+      ],
+      SET: ['editing', 'showingValue'],
+      ERR: ['editing', 'hasError']
+    },
+    initial: {showingValue: true}
   })
 }
 
@@ -190,23 +196,21 @@ function cellView (cell, sheet) {
   const input = html`<input type='text' onchange=${changeInput} onblur=${changeInput}>`
   const output = html`<span class='output' ondblclick=${doubleClick}></span>`
 
-  cell.chart.when({
-    hasError: () => {
-      output.classList.add('error')
-      input.style.display = 'none'
-      output.style.display = 'block'
-      output.innerHTML = 'error'
-    },
-    // no error
-    showingValue: () => {
-      output.classList.remove('error')
-      input.style.display = 'none'
-      output.style.display = 'block'
-    },
-    editing: () => {
-      input.style.display = 'block'
-      output.style.display = 'none'
-    }
+  cell.chart.when('hasError', () => {
+    output.classList.add('error')
+    output.innerHTML = 'error'
+  })
+  cell.chart.whenNot('hasError', () => {
+    output.classList.remove('error')
+  })
+  cell.chart.when('showingValue', () => {
+    input.style.display = 'none'
+    output.style.display = 'block'
+    output.innerHTML = cell.output
+  })
+  cell.chart.when('editing', () => {
+    input.style.display = 'block'
+    output.style.display = 'none'
   })
 
   // Whenever a cell has a new output, set the output's text

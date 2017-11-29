@@ -65,7 +65,6 @@ const view = () => {
 
   const searchInput = html`<input type='text' onchange=${performSearch(searchModel, searchChart)} placeholder='Search Wikipedia'>`
   const loadingSpan = html`<span> Loading... </span>`
-  loadingSpan.hidden = true
   const noResults = html`<p> No results yet.. </p>`
 
   const table = html`
@@ -76,24 +75,16 @@ const view = () => {
   `
   table.hidden = true
 
-  searchChart.when({
-    notLoading: {
-      SEARCH: () => { // -> 'loading'
-        loadingSpan.hidden = false
-      }
-    },
-    loading: {
-      GOT_RESULTS: () => { // -> 'notLoading'
-        loadingSpan.hidden = true
-        noResults.hidden = true
-        table.hidden = false
-      },
-      EMPTY_RESULTS: () => {
-        loadingSpan.hidden = true
-        noResults.hidden = false
-        table.hidden = true
-      }
-    }
+  searchChart.when('loading', () => {
+    loadingSpan.hidden = false
+  }).when('notLoading', () => {
+    loadingSpan.hidden = true
+  }).when('hasResults', () => {
+    noResults.hidden = true
+    table.hidden = false
+  }).when('noResults', () => {
+    noResults.hidden = false
+    table.hidden = true
   })
 
   return html`
