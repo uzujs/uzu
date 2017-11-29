@@ -1,17 +1,41 @@
 const html = require('bel')
 const model = require('../model')
 const dom = require('../dom')
+const statechart = require('../statechart')
+
+const SearchChart = function () {
+  return statechart({
+    initial: {noResults: true, notLoading: true},
+    states: ['noResults', 'hasResults', 'notLoading', 'loading'],
+    events: {
+      EMPTY_RESULTS: [ 
+        ['noResults', 'noResults'],
+        ['hasResults', 'noResults'],
+        ['loading', 'notLoading']
+      ],
+      GOT_RESULTS: [
+        ['noResults', 'hasResults'],
+        ['hasResults', 'hasResults'],
+        ['loading', 'notLoading']
+      ],
+      SEARCH: ['notLoading', 'loading'],
+    }
+  })
+}
 
 const urlStr = 'https://en.wikipedia.org/w/api.php?action=query&format=json&gsrlimit=20&generator=search&origin=*&gsrsearch='
 
 const apiCall = (search) => window.fetch(urlStr + search, {mode: 'cors'}).then(res => res.json())
 
-const performSearch = wikiSearch => ev => {
-  wikiSearch.update({loading: true})
+const performSearch = (searchModel, searchChart) => ev => {
+  searchChart.event('SEARCH')
   const search = ev.currentTarget.value // get input value
+  console.log('hi!')
   apiCall(search).then(data => {
+    console.log('data', data)
     if (!data.query) {
-      wikiSearch.update({results: [], loading: false})
+      searchChart.event('EMPTY_RESULTS')
+      searchModel.update({results: []})
     } else {
       // Assign id properties to each result object
       // convert an object where the keys are ids
@@ -22,31 +46,27 @@ const performSearch = wikiSearch => ev => {
         page.id = page.pageid
         arr.push(page)
       }
-      wikiSearch.update({results: arr, loading: false})
+      searchChart.event('GOT_RESULTS')
+      searchModel.update({results: arr})
     }
   })
 }
 
 const view = () => {
-  const wikiSearch = model({results: [], loading: false})
+  const searchChart = SearchChart()
+  const searchModel = model({results: []})
 
   const rows = dom.childSync({
     view: rowView,
     container: 'tbody',
-    model: wikiSearch,
+    model: searchModel,
     prop: 'results'
   })
 
-  const searchInput = html`<input type='text' onchange=${performSearch(wikiSearch)} placeholder='Search Wikipedia'>`
+  const searchInput = html`<input type='text' onchange=${performSearch(searchModel, searchChart)} placeholder='Search Wikipedia'>`
   const loadingSpan = html`<span> Loading... </span>`
-  wikiSearch.on('loading', l => {
-    loadingSpan.style.display = l ? 'inline-block' : 'none'
-  })
-
+  loadingSpan.hidden = true
   const noResults = html`<p> No results yet.. </p>`
-  wikiSearch.on('results', r => {
-    noResults.style.display = r.length ? 'none' : 'block'
-  })
 
   const table = html`
     <table>
@@ -54,8 +74,26 @@ const view = () => {
       ${rows}
     </table>
   `
-  wikiSearch.on('results', r => {
-    table.style.display = r.length ? 'block' : 'none'
+  table.hidden = true
+
+  searchChart.when({
+    notLoading: {
+      SEARCH: () => { // -> 'loading'
+        loadingSpan.hidden = false
+      }
+    },
+    loading: {
+      GOT_RESULTS: () => { // -> 'notLoading'
+        loadingSpan.hidden = true
+        noResults.hidden = true
+        table.hidden = false
+      },
+      EMPTY_RESULTS: () => {
+        loadingSpan.hidden = true
+        noResults.hidden = false
+        table.hidden = true
+      }
+    }
   })
 
   return html`

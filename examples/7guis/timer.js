@@ -1,54 +1,92 @@
-const model = require('../../model')
+// const model = require('../../model')
 const html = require('bel')
+const statechart = require('../../statechart')
 
 function Timer () {
-  return model({
+  return {
     elapsedMs: 0,
     duration: 10000,
-    running: false,
-    timeoutID: null
-  })
+    timeoutID: null,
+    chart: statechart({
+      states: {
+        initial: {paused: true, ticking: true, isReset: true},
+        isReset: {TICK: 'notReset'},
+        notReset: {RESET: 'isReset'},
+        active: {TOGGLE: 'paused', RESET: 'active', DONE: 'finished'},
+        paused: {TOGGLE: 'active', RESET: 'paused'},
+        finished: {RESET: 'paused'},
+        ticking: {RESET: 'ticking', TICK: 'ticking'}
+      }
+    })
+  }
+}
+
+const resetTimer = (timer) => {
+  timer.elapsedMs = 0
+  timer.chart.event('RESET')
 }
 
 const startTimer = (timer) => {
   // prevent timeouts from stacking when clicking reset
   if (timer.timeoutID) window.clearTimeout(timer.timeoutID)
-  timer.update({elapsedMs: 0, running: true})
-  var intervalMS = 100
+  timer.chart.event('TOGGLE')
+  let intervalMS = 100
   let target = Date.now()
   function tick () {
-    if (!timer.running) return
+    if (!timer.chart.state.active) return
     if (timer.elapsedMs >= timer.duration) {
-      timer.update({running: false})
-      return
+      return timer.chart.event('DONE')
     }
     var now = Date.now()
     target += intervalMS
     const timeoutID = setTimeout(tick, target - now)
-    timer.update({elapsedMs: timer.elapsedMs + 100, timeoutID})
+    timer.elapsedMs = timer.elapsedMs + 100
+    timer.timeoutID = timeoutID
+    timer.chart.event('TICK')
   }
   tick()
 }
 
 const setDuration = timer => ev => {
   const val = Number(ev.currentTarget.value) * 1000
-  timer.update({duration: val})
+  timer.duration = val // no state event needed
 }
 
 function view (timer) {
   // dynamic inputs
   const slider = html`<input type='range' min=0 max=100 step="0.1" oninput=${setDuration(timer)} value=10>`
-  const resetBtn = html`<button onclick=${ev => startTimer(timer)}> Reset </button>`
+  const resetBtn = html`<button onclick=${ev => resetTimer(timer)}> Reset </button>`
+  const pausePlayBtn = html`<button onclick=${ev => startTimer(timer)}></button>`
   // dynamic outputs
   const progress = html`<div class='progress'><div class='progress-bar'></div></div>`
   const secondsSpan = html`<span>0.0s</span>`
 
-  timer.on('elapsedMs', s => { secondsSpan.textContent = (s / 1000).toFixed(1) + 's' })
-  timer.on('elapsedMs', s => {
-    const perc = Math.round(timer.elapsedMs * 100 / timer.duration)
+  // Set the text and progress bar dynamic content based on the Timer chart parameters
+  const setTimer = () => {
+    const ms = timer.elapsedMs
+    const duration = timer.duration
+    secondsSpan.textContent = (ms / 1000).toFixed(1) + 's'
+    // Set percentage width of the progress bar
+    const perc = Math.round(ms * 100 / duration)
     if (perc <= 100) {
       progress.firstChild.style.width = perc + '%'
     }
+  }
+  timer.chart.when({
+    active: () => {
+      pausePlayBtn.textContent = 'Pause'
+    },
+    finished: () => {
+      pausePlayBtn.disabled = true
+      pausePlayBtn.textContent = 'Done!'
+    },
+    ticking: setTimer,
+    paused: () => {
+      pausePlayBtn.disabled = false
+      pausePlayBtn.textContent = 'Start'
+    },
+    isReset: () => { resetBtn.disabled = true },
+    notReset: () => { resetBtn.disabled = false }
   })
 
   return html`
@@ -68,6 +106,7 @@ function view (timer) {
       <div> ${secondsSpan} </div>
       <div> Duration: ${slider} </div>
       <div> ${resetBtn} </div>
+      <div> ${pausePlayBtn} </div>
     </div>
   `
 }

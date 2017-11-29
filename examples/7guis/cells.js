@@ -1,13 +1,24 @@
 const model = require('../../model')
 const html = require('bel')
+const statechart = require('../../machine')
 
+function CellChart () {
+  return statechart({
+    initial: {showingValue: true},
+    showingValue: {EDIT: 'editing'},
+    editing: {SET: 'showingValue', ERR: 'hasError'},
+    hasError: {EDIT: 'editing'}
+  })
+}
+
+// Every cell has its own statechart
 function Cell (name) {
   return model({
     name,
     input: null,
     output: null,
     deps: [],
-    error: false,
+    chart: CellChart(),
     formulaFn: null
   })
 }
@@ -20,7 +31,11 @@ const opFunctions = {
 }
 
 // set a cell to have an error model: no output, no deps, etc
-const setErr = (cell) => cell.update({error: true, input: '', output: null, deps: []})
+const setErr = (cell) => {
+  if (cell.chart.state.hasError) return
+  cell.update({input: '', output: null, deps: []})
+  cell.chart.event('ERR')
+}
 
 // Check if a term in a cell formula is valid
 const validTerm = (term) => {
@@ -29,9 +44,15 @@ const validTerm = (term) => {
   } else return true
 }
 
+
+// Set the cell's input from value entered by the user
+// it could cause an error if the syntax is invalid
+// it could be a plain valid
+// or it could be a formula to be evaluated
 function setInput (val, cell, sheet) {
-  cell.update({error: false}) // get rid of any error model right away
+  if (cell.chart.state.showingValue) return
   if (val === '') { // cleared out a cell to be blank
+    cell.chart.event('SET')
     cell.update({input: '', output: null, formulaFn: null, deps: []})
     return
   }
@@ -44,7 +65,7 @@ function setInput (val, cell, sheet) {
   if (tokens.length === 1) {
     // Single term
     if (!validTerm(tokens[0])) {
-      setErr(cell)
+      return setErr(cell)
     } else {
       const term = tokens[0]
       const deps = isNaN(term) ? [term] : []
@@ -57,7 +78,7 @@ function setInput (val, cell, sheet) {
     // expression like TERM OP TERM
     const [term1, op, term2] = tokens
     if (!validTerm(term1) || !validTerm(term2)) {
-      setErr(cell)
+      return setErr(cell)
     } else {
       const deps = []
       if (isNaN(term1)) deps.push(term1)
@@ -73,7 +94,7 @@ function setInput (val, cell, sheet) {
     }
   } else {
     // tokens length must be 1 or 3 for a valid expression
-    setErr(cell)
+    return setErr(cell)
   }
 
   // Now that the cell has new dependents, we can set the sheet's .dependents object
@@ -90,6 +111,8 @@ function setInput (val, cell, sheet) {
   sheet.dependents[cell.name].forEach(c => {
     c.formulaFn(sheet.dict) // will recalculate output for c
   })
+  // Everything is set in the models; fire the event to show the value
+  cell.chart.event('SET')
 }
 
 const alphabet = 'abcdefghijklmnopqrstupvwxjz'.toUpperCase().split('') // lol
@@ -157,33 +180,38 @@ function view (sheet) {
 }
 
 function cellView (cell, sheet) {
-  // nested model to control the hiding/showing of the input and output text
-  const toggleHide = model({hidden: true})
   const changeInput = ev => {
     setInput(ev.currentTarget.value, cell, sheet)
-    toggleHide.update({hidden: true}) // hide the input, show the output
   }
   const doubleClick = ev => {
-    toggleHide.update({hidden: false}) // show the input, hide the output
+    cell.chart.event('EDIT')
     input.focus()
   }
   const input = html`<input type='text' onchange=${changeInput} onblur=${changeInput}>`
   const output = html`<span class='output' ondblclick=${doubleClick}></span>`
 
-  cell.on('output', val => { output.innerHTML = val || '&nbsp;' })
-  cell.on('error', err => {
-    if (err) {
+  cell.chart.when({
+    hasError: () => {
       output.classList.add('error')
-      output.textContent = 'error'
-    } else {
+      input.style.display = 'none'
+      output.style.display = 'block'
+      output.innerHTML = 'error'
+    },
+    // no error
+    showingValue: () => {
       output.classList.remove('error')
+      input.style.display = 'none'
+      output.style.display = 'block'
+    },
+    editing: () => {
+      input.style.display = 'block'
+      output.style.display = 'none'
     }
   })
 
-  toggleHide.on('hidden', hideInput => {
-    input.style.display = hideInput ? 'none' : 'block'
-    output.style.display = hideInput ? 'block' : 'none'
-  })
+  // Whenever a cell has a new output, set the output's text
+  cell.onUpdate('output', val => { output.innerHTML = val || '&nbsp;' })
+
   return html`<span> ${input} ${output} </span>`
 }
 

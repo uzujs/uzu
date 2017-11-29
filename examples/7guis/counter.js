@@ -1,17 +1,18 @@
-const model = require('../../model')
 const html = require('bel')
 
+// Nothing fancy here...
 function view () {
-  const counter = model({count: 0})
-  const incr = ev => counter.update({count: counter.count + 1})
-  const btn = html`<button onclick=${incr}> Count </button>`
-
   const countSpan = document.createElement('span')
-  counter.on('count', c => { countSpan.textContent = c })
+  var count = 0
+  const incr = () => {
+    countSpan.textContent = count++
+  }
+  incr()
+  const btn = html`<button onclick=${incr}> Count </button>`
 
   return html`
     <div>
-      <p> Counter </p>
+      <p> Counter example </p>
       <p> ${countSpan} ${btn} </p>
     </div>
   `

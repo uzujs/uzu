@@ -19,7 +19,7 @@ function model (initialData) {
     }
     return model
   }
-  model.on = function on (props, fn) {
+  model.onUpdate = function on (props, fn) {
     if (typeof props === 'string') props = [props]
     if (!Array.isArray(props)) {
       throw new TypeError('Pass in a single prop name or array of props')

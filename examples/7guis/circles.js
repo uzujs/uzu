@@ -111,12 +111,12 @@ function view (collection) {
 
   // inputs
   const slider = html`<input type='range' min=10 max=200 value=${collection.diameter} onchange=${setDiameter(collection)}>`
-  collection.on('diameter', d => { slider.value = d })
+  collection.onUpdate('diameter', d => { slider.value = d })
   const undoBtn = html`<button onclick=${undo(collection)}> Undo </button>`
   const redoBtn = html`<button onclick=${redo(collection)}> Redo </button>`
   const history = collection.history
-  history.on('undoStack', b => { undoBtn.disabled = !b.length })
-  history.on('redoStack', f => { redoBtn.disabled = !f.length })
+  history.onUpdate('undoStack', b => { undoBtn.disabled = !b.length })
+  history.onUpdate('redoStack', f => { redoBtn.disabled = !f.length })
 
   return html`
     <div style='text-align: center'>
@@ -149,10 +149,10 @@ function view (collection) {
 
 const circleView = collection => circle => {
   const circElm = html`<circle cx=${circle.x} cy=${circle.y} r=${circle.radius} data-id=${circle.id}>`
-  circle.on('selected', selected => {
+  circle.onUpdate('selected', selected => {
     circElm.setAttribute('fill', selected ? '#888' : 'white')
   })
-  circle.on('radius', r => {
+  circle.onUpdate('radius', r => {
     circElm.setAttribute('r', r)
   })
   return circElm

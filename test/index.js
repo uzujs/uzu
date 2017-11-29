@@ -4,7 +4,7 @@ const catchListeners = require('../lib/catch-listeners')
 
 // Other tests for sub-modules
 require('./dom')
-require('./machine')
+require('./statechart')
 
 test('initializing model sets properties', t => {
   const s = model({x: 1, y: 'a'})

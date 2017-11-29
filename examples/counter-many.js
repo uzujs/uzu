@@ -72,19 +72,19 @@ function counterView (counter) {
   const btn = (name, text) => html`<button onclick=${action(name)}> ${text} </button>`
 
   const spanCount = document.createElement('span')
-  counter.on('count', c => { spanCount.textContent = c })
+  counter.onUpdate('count', c => { spanCount.textContent = c })
   const countMsg = html`<p> Total beans: ${spanCount} </p>`
 
   const incrBtn = btn('increment', 'add bean')
   const decrBtn = btn('decrement', 'toss a bean')
   const resetBtn = btn('reset', 'throw all beans in the garbage')
 
-  counter.on('count', function () {
+  counter.onUpdate('count', function () {
     decrBtn.disabled = resetBtn.disabled = counter.count === 0
   })
 
   const spanID = document.createElement('span')
-  counter.on('id', id => { spanID.textContent = id })
+  counter.onUpdate('id', id => { spanID.textContent = id })
 
   return html`
     <div>

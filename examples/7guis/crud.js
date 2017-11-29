@@ -94,9 +94,9 @@ function view (people) {
     prop: 'arr'
   })
 
-  people.on('currentSearch', s => { filterInput.value = s })
+  people.onUpdate('currentSearch', s => { filterInput.value = s })
 
-  people.on('selected', id => {
+  people.onUpdate('selected', id => {
     if (id !== null) {
       const person = findPerson(id, people)
       firstNameInput.value = person.first
@@ -130,16 +130,16 @@ function view (people) {
 
 const peopleDiv = people => person => {
   const nameSpan = document.createElement('span')
-  person.on(['first', 'last'], () => {
+  person.onUpdate(['first', 'last'], () => {
     nameSpan.textContent = person.last + ', ' + person.first
   })
   const select = ev => people.update({selected: people.selected === person.id ? null : person.id})
   const div = html`<div onclick=${select}> ${nameSpan} </div>`
   div.style.cursor = 'pointer'
-  person.on('hidden', h => {
+  person.onUpdate('hidden', h => {
     div.style.display = h ? 'none' : 'block'
   })
-  people.on('selected', id => {
+  people.onUpdate('selected', id => {
     div.style.backgroundColor = (id === person.id) ? 'gray' : 'transparent'
   })
   return div

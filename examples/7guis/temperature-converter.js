@@ -1,34 +1,33 @@
-const model = require('../../model')
 const html = require('bel')
+
+// Nothing fancy here...
 
 const toCelsius = f => Math.round((f - 32) * (5 / 9))
 const toFahren = c => Math.round(c * 1.8 + 32)
 const getVal = ev => ev.currentTarget.value
 
 function view () {
-  const celsius = model({val: 0})
-  const fahren = model({val: 32})
-  const handleCelsiusKeyup = ev => fahren.update({val: toFahren(getVal(ev))})
-  const handleFahrenKeyup = ev => celsius.update({val: toCelsius(getVal(ev))})
+  var celsius = 0
+  var fahren = 32 
+
+  const keyupCelsius = ev => {
+    fahrenInput.value = toFahren(getVal(ev))
+  }
+  const keyupFahren = ev => {
+    celsiusInput.value = toCelsius(getVal(ev))
+  }
+
+  const celsiusInput = html`<input type='number' onkeyup=${keyupCelsius} value=${celsius}>`
+  const fahrenInput = html`<input type='number' onkeyup=${keyupFahren} value=${fahren}>`
 
   return html`
     <div>
-      <p> TempConv </p>
+      <p> Fahrenheit-to-Celsius Temperature Converter </p>
       <div>
-         ${input(handleCelsiusKeyup, celsius)}
-         Celsius
-         =
-         ${input(handleFahrenKeyup, fahren)}
-         Fahrenheit
+         ${celsiusInput} Celsius = ${fahrenInput} Fahrenheit
       </div>
     </div>
   `
-}
-
-function input (handler, model) {
-  const elm = html`<input type='number' onkeyup=${handler}>`
-  model.on('val', v => { elm.value = v })
-  return elm
 }
 
 document.body.appendChild(view())
