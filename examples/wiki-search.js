@@ -3,19 +3,20 @@ const model = require('../model')
 const statechart = require('../statechart')
 const dom = require('../dom')
 
+const searchState = statechart({
+  states: ['loading', 'hasResults', 'noResults'],
+  events: {
+    SEARCH: [['hasResults', 'loading'], ['noResults', 'loading']],
+    GOT_RESULTS: ['loading', 'hasResults'],
+    NO_RESULTS: ['loading', 'noResults']
+  },
+  initial: {noResults: true}
+})
+
 const WikiSearch = () => {
-  const state = statechart({
-    states: ['loading', 'hasResults', 'noResults'],
-    events: {
-      SEARCH: [['hasResults', 'loading'], ['noResults', 'loading']],
-      GOT_RESULTS: ['loading', 'hasResults'],
-      NO_RESULTS: ['loading', 'noResults']
-    },
-    initial: {noResults: true}
-  })
   return model({
     results: [],
-    state: state
+    state: searchState
   }, {
     search: (ev, m, update) => {
       update({state: m.state.event('SEARCH')})
@@ -56,7 +57,7 @@ const performSearch = (searchStr, cb) => {
 
 const view = () => {
   const wikiSearch = WikiSearch()
-  const searchInput = html`<input type='text' onchange=${wikiSearch.events.search} placeholder='Search Wikipedia'>`
+  const searchInput = html`<input type='text' onchange=${wikiSearch.actions.search} placeholder='Search Wikipedia'>`
   const loadingMsg = html`<p> Loading... </p>`
   const noResults = html`<p> No results yet.. </p>`
   const rows = dom.childSync({
