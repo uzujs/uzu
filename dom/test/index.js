@@ -1,6 +1,6 @@
 const html = require('bel')
 const model = require('../../model')
-const dom = require('../../dom')
+const dom = require('../')
 const test = require('tape')
 
 var id = 0
@@ -8,12 +8,12 @@ function Elem (name) {
   return model({name: name, id: id++})
 }
 function List (elems) {
-  return model({elems: elems || []})
+  return model({elems: elems || []}, {set: (elems, _, update) => update({elems})})
 }
 
 function childView (elem, idx) {
   const span = document.createElement('span')
-  elem.on('name', n => { span.textContent = n })
+  elem.onUpdate('name', n => { span.textContent = n })
   return html`<li> ${span} </li>`
 }
 
@@ -36,12 +36,12 @@ test('childSync appends, removes, and reorders children', t => {
   t.strictEqual(ul.textContent.replace(/\s/g, ''), 'abc', 'has text content of all child views')
   // Append a new child
   list.elems.push(d)
-  list.update({elems: list.elems})
+  list.actions.set(list.elems)
   t.strictEqual(ul.children.length, 4, 'has four elems after the append')
   t.strictEqual(ul.textContent.replace(/\s/g, ''), 'abcd', 'has text content of fourth view')
   // Remove a middle child
   list.elems.splice(1, 1)
-  list.update({elems: list.elems})
+  list.actions.set(list.elems)
   t.strictEqual(ul.children.length, 3, 'correct number of children after remove')
   t.strictEqual(ul.textContent.replace(/\s/g, ''), 'acd', 'correct text content after remove')
   // listener on b removed
@@ -52,23 +52,23 @@ test('childSync appends, removes, and reorders children', t => {
   const swap = list.elems[0]
   list.elems[0] = list.elems[1]
   list.elems[1] = swap
-  list.update({elems: list.elems})
+  list.actions.set(list.elems)
   t.strictEqual(ul.children.length, 3, 'correct number of children after reorder')
   t.strictEqual(ul.textContent.replace(/\s/g, ''), 'cad', 'correct text content')
   t.strictEqual(firstChild, ul.children[1], 'swapped elems are the same as before')
   t.strictEqual(secondChild, ul.children[0], 'swapped elems are the same as before')
   // Remove last child
   list.elems.splice(2, 1)
-  list.update({elems: list.elems})
+  list.actions.set(list.elems)
   t.strictEqual(ul.textContent.replace(/\s/g, ''), 'ca', 'correct text content')
   t.strictEqual(Object.keys(d._emitter._events).length, 0, 'listener removed')
   // Remove first child
   list.elems.splice(0, 1)
-  list.update({elems: list.elems})
+  list.actions.set(list.elems)
   t.strictEqual(ul.textContent.replace(/\s/g, ''), 'a', 'correct text content')
   t.strictEqual(Object.keys(c._emitter._events).length, 0, 'listener removed')
   // Replace array
-  list.update({elems: []})
+  list.actions.set([])
   t.strictEqual(ul.textContent.replace(/\s/g, ''), '', 'correct text content')
   t.strictEqual(Object.keys(a._emitter._events).length, 0, 'listener removed')
   t.end()
@@ -77,12 +77,12 @@ test('childSync appends, removes, and reorders children', t => {
 // route
 
 function Router (p) {
-  return model({page: p})
+  return model({page: p}, {set: (page, _, update) => update({page})})
 }
 
 function routeView (router) {
   var childView = name => () => {
-    router.on('page', () => { 'listening' })
+    router.onUpdate('page', () => { 'listening' })
     return html` <p> ${name} </p> `
   }
   return dom.route({
@@ -105,11 +105,11 @@ test('route container always has correct the active child', t => {
   t.strictEqual(div.textContent.replace(/\s/g, ''), 'a', 'has viewA content')
   // One listeners for dom.route, plus one listener in the child view
   t.strictEqual(emitter._events['update:page'].length, 2, 'correct number of listeners')
-  router.update({page: 'b'})
+  router.actions.set('b')
   t.strictEqual(div.children.length, 1, 'has only one child for viewB')
   t.strictEqual(div.textContent.replace(/\s/g, ''), 'b', 'has viewB content')
   t.strictEqual(emitter._events['update:page'].length, 2, 'correct number of listeners')
-  router.update({page: 'c'})
+  router.actions.set('c')
   t.strictEqual(div.children.length, 1, 'has only one child for viewC')
   t.strictEqual(div.textContent.replace(/\s/g, ''), 'c', 'has viewC content')
   t.strictEqual(emitter._events['update:page'].length, 2, 'correct number of listeners')

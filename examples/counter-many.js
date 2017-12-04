@@ -2,42 +2,28 @@ const dom = require('../dom')
 const html = require('bel')
 const model = require('../model')
 
-var uid = 0
-function Counter (initial, id) {
-  return model({count: initial, id: uid++})
-}
-
-var counterActions = {
-  increment: function (c) {
-    c.update({count: c.count + 1})
-  },
-  decrement: function (c) {
-    if (c.count > 0) {
-      c.update({count: c.count - 1})
-    }
-  },
-  reset: function (c) {
-    c.update({count: 0})
-  }
+var id = 0
+function Counter (initial) {
+  return model({count: initial, id: id++}, {
+    increment: (ev, m, update) => update({ count: m.count + 1 }),
+    decrement: (ev, m, update) => update({ count: m.count - 1 }),
+    reset: (ev, m, update) => update({ count: 0 })
+  })
 }
 
 function CounterList (initial = []) {
-  return model({counters: initial.map(Counter)})
-}
-
-var counterListActions = {
-  append: function (initial, c) {
-    c.update({counters: c.counters.concat([Counter(initial)])})
-  },
-  remove: function (id, c) {
-    const filtered = c.counters.filter(c => c.id !== id)
-    c.update({counters: filtered})
-  }
+  return model({counters: initial.map(Counter)}, {
+    append: (ev, m, update) => update({
+      counters: m.counters.concat([Counter(0)])
+    }),
+    remove: (id, m, update) => update({
+      counters: m.counters.filter(c => c.id !== id)
+    })
+  })
 }
 
 function listView (counterList) {
-  const appendFn = ev => counterListActions.append(0, counterList)
-  const appendBtn = html`<button onclick=${appendFn}> Add bean bag </button>`
+  const appendBtn = html`<button onclick=${counterList.events.append}> Add bean bag </button>`
   const counterElems = dom.childSync({
     model: counterList,
     prop: 'counters',
@@ -55,7 +41,7 @@ function listView (counterList) {
 }
 
 const counterViewWithRemove = counterList => counter => {
-  const removeFn = ev => counterListActions.remove(counter.id, counterList)
+  const removeFn = ev => counterList.events.remove(counter.id)
   const removeBtn = html`<button onclick=${removeFn}> Remove bag </button>`
   return html`
     <div>
@@ -68,23 +54,22 @@ const counterViewWithRemove = counterList => counter => {
 }
 
 function counterView (counter) {
-  const action = name => ev => counterActions[name](counter)
-  const btn = (name, text) => html`<button onclick=${action(name)}> ${text} </button>`
+  const btn = (name, text) => html`<button onclick=${counter.events[name]}> ${text} </button>`
 
   const spanCount = document.createElement('span')
-  counter.on('count', c => { spanCount.textContent = c })
+  counter.onUpdate('count', c => { spanCount.textContent = c })
   const countMsg = html`<p> Total beans: ${spanCount} </p>`
 
   const incrBtn = btn('increment', 'add bean')
   const decrBtn = btn('decrement', 'toss a bean')
   const resetBtn = btn('reset', 'throw all beans in the garbage')
 
-  counter.on('count', function () {
+  counter.onUpdate('count', function () {
     decrBtn.disabled = resetBtn.disabled = counter.count === 0
   })
 
   const spanID = document.createElement('span')
-  counter.on('id', id => { spanID.textContent = id })
+  counter.onUpdate('id', id => { spanID.textContent = id })
 
   return html`
     <div>

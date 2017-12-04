@@ -5,30 +5,33 @@ const toCelsius = f => Math.round((f - 32) * (5 / 9))
 const toFahren = c => Math.round(c * 1.8 + 32)
 const getVal = ev => ev.currentTarget.value
 
+const Temps = (cels, fahren) => model({
+  celsius: cels,
+  fahren: fahren
+}, {
+  setCelsius: (ev, m, update) => update({ fahren: toFahren(getVal(ev)) }),
+  setFahren: (ev, m, update) => update({ celsius: toCelsius(getVal(ev)) })
+})
+
 function view () {
-  const celsius = model({val: 0})
-  const fahren = model({val: 32})
-  const handleCelsiusKeyup = ev => fahren.update({val: toFahren(getVal(ev))})
-  const handleFahrenKeyup = ev => celsius.update({val: toCelsius(getVal(ev))})
+  const temps = Temps(0, 32)
+  const celsInput = html`<input type='number' onkeyup=${temps.actions.setCelsius}>`
+  const fahrenInput = html`<input type='number' onkeyup=${temps.actions.setFahren}>`
+  temps.onUpdate('celsius', c => { celsInput.value = c })
+  temps.onUpdate('fahren', f => { fahrenInput.value = f })
 
   return html`
     <div>
       <p> TempConv </p>
       <div>
-         ${input(handleCelsiusKeyup, celsius)}
+         ${celsInput}
          Celsius
          =
-         ${input(handleFahrenKeyup, fahren)}
+         ${fahrenInput}
          Fahrenheit
       </div>
     </div>
   `
-}
-
-function input (handler, model) {
-  const elm = html`<input type='number' onkeyup=${handler}>`
-  model.on('val', v => { elm.value = v })
-  return elm
 }
 
 document.body.appendChild(view())

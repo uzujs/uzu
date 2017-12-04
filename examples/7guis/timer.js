@@ -1,50 +1,88 @@
 const model = require('../../model')
+const statechart = require('../../statechart')
 const html = require('bel')
+
+const state = statechart({
+  states: ['running', 'paused', 'reset', 'finished'],
+  events: {
+    PAUSE: ['running', 'paused'],
+    RESET: [['running', 'reset'], ['finished', 'reset'], ['paused', 'reset']],
+    START: [['paused', 'running'], ['reset', 'running']],
+    DONE: ['running', 'finished']
+  },
+  initial: {reset: true}
+})
 
 function Timer () {
   return model({
     elapsedMs: 0,
     duration: 10000,
-    running: false,
-    timeoutID: null
+    timeoutID: null,
+    state: state
+  }, {
+    // Toggle start or pause
+    toggle: (ev, timer, update) => {
+      if (timer.state.running) {
+        // Pause
+        clearTimeout(timer.timeoutID)
+        update({
+          timeoutID: null,
+          state: timer.state.event('PAUSE')
+        })
+      } else {
+        startTimer(timer, update)
+      }
+    },
+    reset: (ev, timer, update) => {
+      clearTimeout(timer.timeoutID)
+      update({
+        timeoutID: null,
+        elapsedMs: 0,
+        state: timer.state.event('RESET')
+      })
+    },
+    setDuration: (ev, timer, update) => {
+      update({duration: ev.currentTarget.value * 1000})
+    }
   })
 }
 
-const startTimer = (timer) => {
+const startTimer = (timer, update) => {
   // prevent timeouts from stacking when clicking reset
-  if (timer.timeoutID) window.clearTimeout(timer.timeoutID)
-  timer.update({elapsedMs: 0, running: true})
-  var intervalMS = 100
+  update({ state: timer.state.event('START') })
   let target = Date.now()
   function tick () {
-    if (!timer.running) return
+    if (!timer.state.running) return
     if (timer.elapsedMs >= timer.duration) {
-      timer.update({running: false})
-      return
+      return update({ state: timer.state.event('DONE') })
     }
     var now = Date.now()
-    target += intervalMS
+    target += 100
     const timeoutID = setTimeout(tick, target - now)
-    timer.update({elapsedMs: timer.elapsedMs + 100, timeoutID})
+    update({
+      elapsedMs: timer.elapsedMs + 100,
+      timeoutID: timeoutID
+    })
   }
   tick()
 }
 
-const setDuration = timer => ev => {
-  const val = Number(ev.currentTarget.value) * 1000
-  timer.update({duration: val})
-}
-
 function view (timer) {
-  // dynamic inputs
-  const slider = html`<input type='range' min=0 max=100 step="0.1" oninput=${setDuration(timer)} value=10>`
-  const resetBtn = html`<button onclick=${ev => startTimer(timer)}> Reset </button>`
+  // inputs
+  const slider = html`<input type='range' min=0 max=100 step="0.1" oninput=${timer.actions.setDuration} value=10>`
+  const startPauseBtn = html`<button onclick=${timer.actions.toggle}> </button>`
+  const resetBtn = html`<button onclick=${timer.actions.reset}> Reset </button>`
   // dynamic outputs
   const progress = html`<div class='progress'><div class='progress-bar'></div></div>`
   const secondsSpan = html`<span>0.0s</span>`
 
-  timer.on('elapsedMs', s => { secondsSpan.textContent = (s / 1000).toFixed(1) + 's' })
-  timer.on('elapsedMs', s => {
+  timer.onUpdate('state', s => {
+    startPauseBtn.textContent = s.paused || s.reset ? 'Start' : 'Pause'
+    startPauseBtn.disabled = s.finished
+    resetBtn.disabled = s.reset
+  })
+  timer.onUpdate('elapsedMs', ms => {
+    secondsSpan.textContent = (ms / 1000).toFixed(1) + 's'
     const perc = Math.round(timer.elapsedMs * 100 / timer.duration)
     if (perc <= 100) {
       progress.firstChild.style.width = perc + '%'
@@ -67,6 +105,7 @@ function view (timer) {
       <div> Elapsed time: ${progress} </div>
       <div> ${secondsSpan} </div>
       <div> Duration: ${slider} </div>
+      <div> ${startPauseBtn} </div>
       <div> ${resetBtn} </div>
     </div>
   `

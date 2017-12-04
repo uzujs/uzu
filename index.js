@@ -1,5 +1,5 @@
 module.exports = {
   model: require('./model'),
-  machine: require('./machine'),
+  statechart: require('./statechart'),
   dom: require('./dom')
 }

@@ -26,7 +26,7 @@ function view () {
 }
 
 function navBtn (tabModel, name) {
-  tabModel.on('page', p => console.log(`page changed to ${p} from btn ${name}`))
+  tabModel.onUpdate('page', p => console.log(`page changed to ${p} from btn ${name}`))
   return html`<button onclick=${ev => tabModel.update({page: name})}> Show view ${name} </button>`
 }
 

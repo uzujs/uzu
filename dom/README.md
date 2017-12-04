@@ -22,7 +22,7 @@ function increment (c) {
 
 function view (beanCount) {
   const countSpan = document.createElement('span')
-  beanCount.on('count', c => { span.textContent = c })
+  beanCount.onUpdate('count', c => { span.textContent = c })
 
   return html`
     <div>

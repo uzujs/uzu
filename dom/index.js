@@ -15,7 +15,7 @@ module.exports.childSync = function childSync (options) {
   }
   var container = options.container
   var inserted = {} // track already-inserted dom nodes based on object id
-  options.model.on(options.prop, update)
+  options.model.onUpdate(options.prop, update)
 
   // Given a new set of data, update the child dom elements
   function update () {
@@ -66,7 +66,7 @@ module.exports.route = function route (options) {
   if (typeof options.container === 'string') options.container = document.createElement(options.container)
   var listeners = []
   var prevPage = null
-  options.model.on(options.prop, function (p) {
+  options.model.onUpdate(options.prop, function (p) {
     if (p === prevPage) return
     prevPage = p
     listeners.forEach(function (listener) {

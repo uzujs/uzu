@@ -1,96 +1,82 @@
-const model = require('../../model')
+const Model = require('../../model')
 const html = require('bel')
+const statechart = require('../../statechart')
+
+// statechart for a single spreadsheet cell
+const cellState = statechart({
+  states: ['displaying', 'editing', 'hasError'],
+  events: {
+    ERR: ['editing', 'hasError'],
+    OK: ['editing', 'displaying'],
+    EDIT: [
+      ['displaying', 'editing'],
+      ['hasError', 'editing']
+    ]
+  },
+  initial: {displaying: true}
+})
 
 function Cell (name) {
-  return model({
+  return Model({
     name,
+    state: cellState,
     input: null,
     output: null,
-    deps: [],
-    error: false,
-    formulaFn: null
+    references: [], // array of other cell names that this one references
+    evaluateFn: null
+  }, {
+    edit: (_, c, update) => update({state: c.state.event('EDIT')}),
+    evaluate: (sheet, c, update) => {
+      if (c.evaluateFn) update({output: c.evaluateFn(sheet)})
+    },
+    setInput: (val, cell, update) => {
+      if (cell.input === val) return
+      update({input: val, references: []})
+      if (val === '') { // blank out cell
+        resetCell(update)
+        return update({state: cell.state.event('OK')})
+      }
+      let [term1, op, term2] = val.split(/([-+/*])/).map(val => val.trim())
+      op = op || 'no-op'
+      if (isRef(term1)) cell.references.push(term1)
+      if (isRef(term2)) cell.references.push(term2)
+
+      if (!validateFormula(term1, op, term2)) {
+        resetCell(update)
+        return update({state: cell.state.event('ERR')})
+      }
+      const evaluateFn = (sheet) => {
+        let val1 = isRef(term1) ? sheet.hash[term1].output : Number(term1)
+        let val2 = isRef(term2) ? sheet.hash[term2].output : Number(term2)
+        return opFunctions[op](val1, val2)
+      }
+      update({state: cell.state.event('OK'), evaluateFn})
+    }
   })
 }
 
+const resetCell = update =>
+  update({output: null, evaluateFn: null, references: []})
+
 const opFunctions = {
+  'no-op': (x) => x,
   '+': (x, y) => x + y,
   '-': (x, y) => x - y,
   '*': (x, y) => x * y,
   '/': (x, y) => x / y
 }
 
-// set a cell to have an error model: no output, no deps, etc
-const setErr = (cell) => cell.update({error: true, input: '', output: null, deps: []})
-
-// Check if a term in a cell formula is valid
-const validTerm = (term) => {
-  if (isNaN(term)) {
-    return /^[A-Z]\d\d?$/.test(term)
-  } else return true
+// Validate a simple formula
+// term1 must be present and either a number or reference
+// term2 can be absent, or if present must be a number or ref
+// op can be absent, or if present must be a key in opFunctions
+const validateFormula = (term1, op, term2) => {
+  return term1 && (!isNaN(term1) || isRef(term1)) &&
+    (!term2 || (!isNaN(term2) || isRef(term2))) &&
+    (!op || opFunctions[op])
 }
 
-function setInput (val, cell, sheet) {
-  cell.update({error: false}) // get rid of any error model right away
-  if (val === '') { // cleared out a cell to be blank
-    cell.update({input: '', output: null, formulaFn: null, deps: []})
-    return
-  }
-
-  // Split the input by a possible operator -- will have length one if 'TERM' or length three if 'TERM OP TERM'
-  const tokens = val.split(/([-+/*])/).map(val => val.trim())
-  // Save a reference the cell's current dependents for later
-  const oldDeps = cell.deps
-
-  if (tokens.length === 1) {
-    // Single term
-    if (!validTerm(tokens[0])) {
-      setErr(cell)
-    } else {
-      const term = tokens[0]
-      const deps = isNaN(term) ? [term] : []
-      // function to store to compute the output from the sheet's dictionary of cells
-      const formulaFn = (cells) => cell.update({output: isNaN(term) ? sheet.dict[term].output : Number(term)})
-      cell.update({input: val, formulaFn, deps})
-      formulaFn(sheet.dict) // compute the output right away
-    }
-  } else if (tokens.length === 3) {
-    // expression like TERM OP TERM
-    const [term1, op, term2] = tokens
-    if (!validTerm(term1) || !validTerm(term2)) {
-      setErr(cell)
-    } else {
-      const deps = []
-      if (isNaN(term1)) deps.push(term1)
-      if (isNaN(term2)) deps.push(term2)
-      // function to store to compute the output from the sheet's dictionary of cells
-      const formulaFn = (cells) => {
-        const t1 = isNaN(term1) ? cells[term1].output : Number(term1)
-        const t2 = isNaN(term2) ? cells[term2].output : Number(term2)
-        cell.update({output: opFunctions[op](t1, t2)})
-      }
-      cell.update({input: val, formulaFn, deps})
-      formulaFn(sheet.dict) // compute the output right away
-    }
-  } else {
-    // tokens length must be 1 or 3 for a valid expression
-    setErr(cell)
-  }
-
-  // Now that the cell has new dependents, we can set the sheet's .dependents object
-  // Remove old dependents and set new ones
-  oldDeps.forEach(name => {
-    sheet.dependents[name] = sheet.dependents[name].filter(c => c !== cell)
-  })
-  cell.deps.forEach(name => {
-    sheet.dependents[name] = sheet.dependents[name] || []
-    sheet.dependents[name].push(cell)
-  })
-  sheet.update({dependents: sheet.dependents})
-  // Now that all the dependents are set, and the cell has a new value, we can re-calculate values for all cells that depend on this one
-  sheet.dependents[cell.name].forEach(c => {
-    c.formulaFn(sheet.dict) // will recalculate output for c
-  })
-}
+const isRef = t => t && /^[A-Z]\d\d?$/.test(t)
 
 const alphabet = 'abcdefghijklmnopqrstupvwxjz'.toUpperCase().split('') // lol
 
@@ -98,12 +84,12 @@ function Sheet () {
   // Generate all the cells
   // Store them in both an array of arrays to render to the view
   //   as well as a dictionary for quick reference by name
-  let dict = {}
+  let hash = {}
   let rows = []
-  // dependents keeps track of what cells depend on what others:
-  //    values are cell names
-  //    keys are arrays of other cells
-  //    (this says cell name XY *is referenced in* all the cells in the array
+  // dependents are cells that reference other cells
+  // dependents example: {A1: {C1: true, D1: true}}
+  // C1 and D1 have references to A1
+  // when A1 updates, we need to also update C1 and D1
   let dependents = {}
   for (let i = 0; i < 99; ++i) {
     rows.push([])
@@ -111,11 +97,31 @@ function Sheet () {
       let name = alphabet[j] + String(i + 1)
       let cell = Cell(name)
       rows[i].push(cell)
-      dict[name] = cell
-      dependents[name] = []
+      hash[name] = cell
+      dependents[name] = {}
     }
   }
-  return model({ rows, dict, dependents })
+  return Model({rows, hash, dependents}, {
+    setInput: ([cell, ev], sheet, update) => {
+      const input = ev.currentTarget.value
+      // Remove old references
+      cell.references.forEach(name => {
+        sheet.dependents[name][cell.name] = undefined
+      })
+      cell.actions.setInput(input)
+      cell.actions.evaluate(sheet)
+      if (!cell.references.length) return
+      // Save new references
+      cell.references.forEach(name => {
+        sheet.dependents[name][cell.name] = true
+      })
+      // Update all other cells that reference this one
+      for (let name in sheet.dependents[cell.name]) {
+        let dep = sheet.hash[name]
+        dep.actions.evaluate(sheet)
+      }
+    }
+  })
 }
 
 function view (sheet) {
@@ -137,6 +143,7 @@ function view (sheet) {
             white-space: nowrap;
           }
           .output {
+            display: inline-block;
             width: 60px;
             background: #efefef;
           }
@@ -145,7 +152,7 @@ function view (sheet) {
             background: #efefef;
           }
           .output.error {
-            border: 1px solid red;
+            background: red;
           }
         </style>
 
@@ -158,32 +165,23 @@ function view (sheet) {
 
 function cellView (cell, sheet) {
   // nested model to control the hiding/showing of the input and output text
-  const toggleHide = model({hidden: true})
   const changeInput = ev => {
-    setInput(ev.currentTarget.value, cell, sheet)
-    toggleHide.update({hidden: true}) // hide the input, show the output
+    sheet.actions.setInput([cell, ev])
   }
   const doubleClick = ev => {
-    toggleHide.update({hidden: false}) // show the input, hide the output
+    cell.actions.edit()
     input.focus()
   }
   const input = html`<input type='text' onchange=${changeInput} onblur=${changeInput}>`
   const output = html`<span class='output' ondblclick=${doubleClick}></span>`
 
-  cell.on('output', val => { output.innerHTML = val || '&nbsp;' })
-  cell.on('error', err => {
-    if (err) {
-      output.classList.add('error')
-      output.textContent = 'error'
-    } else {
-      output.classList.remove('error')
-    }
+  cell.onUpdate('output', val => { output.innerHTML = val || '&nbsp;' })
+  cell.onUpdate('state', s => {
+    output.classList.toggle('error', Boolean(s.hasError))
+    input.style.display = s.editing ? 'inline-block' : 'none'
+    output.style.display = s.displaying || s.hasError ? 'inline-block' : 'none'
   })
 
-  toggleHide.on('hidden', hideInput => {
-    input.style.display = hideInput ? 'none' : 'block'
-    output.style.display = hideInput ? 'block' : 'none'
-  })
   return html`<span> ${input} ${output} </span>`
 }
 

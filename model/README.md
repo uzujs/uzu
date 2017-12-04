@@ -1,51 +1,32 @@
 # uzu models
 
-Models contain data and will emit events when any properties change. That's it!
+Models contain data and will emit events when any properties change. You can also define actions that they can accept, which cause updates in the model.
 
-## model(defaults)
+## Model(defaultData, actions)
 
-This is exported in `./index.js`.
+Make a new model! `defaultData` is an object of data that is immediately set on pageload. `actions` is an object of event names and updater functions.
+
+Each actio n function can take arguments for `(yourData, model, update)` where:
+* `yourData` is any arbitrary data passed into the action
+* `model` is the model itself
+* `update` is a function that takes an object of new properties to merge into the model
 
 ```js
-const state = require('./index')
+const Model = require('uzu/model')
 function BeanCount (initial) {
-  return state({ count: initial })
+  return Model(
+    { count: initial },
+    { addBeans: (n, {count}, update) => update({count: count + n}) }
+  )
 }
 ```
 
-A state is simply an object containing data, and will get an event emitter attached to it. See `on` for handling update events.
+Model properties are strict: if you try to update a property in the state that wasnt initialized when the state is first created, then a TypeError will get thrown. This is a bug prevention / code readability measure.
 
-State properties are strict, kind of like structs in other languages. If you try to update a property in the state that wasnt initialized when the state is first created, then a TypeError will get thrown. This is a bug prevention / code readability measure.
+## state.onUpdate(prop, fn)
 
-```js
-const counter = state({count: 1})
-counter.update({id: 0}) // throws TypeError
-const counterWithID = state({count: 1, id: 0})
-counterWithID.update({id: 99}) // ok
-```
-
-## state.update(data)
-
-In order to update a state, use the `update` method.
-
-`state` is an instance of some state object.
-
-`data` is an object that will get merged into the state. For every key/value, an event will get emitted (see `on` below).
+Listen to changes on `prop` and call `fn` any time an updater action has changed that prop.
 
 ```js
-const bc = BeanCount(0)
-const data = {count: 1, hidden: false}
-
-bc.update(data)
-bc.update({count: 2})
-bc.update({count: 3, hidden: true})
-// etc
-```
-
-## state.on(prop, fn)
-
-Call the function `fn` each time the property `prop` gets updated in the state. This will also call `fn` immediately for the current value of the prop.
-
-```js
-bc.on('count', (c) => console.log('count updated to', c))
+beanCount.onUpdate('count', (c) => console.log('count updated to', c))
 ```
