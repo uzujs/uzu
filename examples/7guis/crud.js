@@ -9,53 +9,62 @@ function Person (last, first) {
     first,
     hidden: false,
     id: uid++
-  }, {
-    filter: (search, person, update) => {
-      const fullName = person.first + ' ' + person.last
-      const idx = fullName.toLowerCase().indexOf(search.toLowerCase())
-      update({hidden: idx === -1})
-    },
-    setName: ([last, first], _, update) => update({first, last})
   })
 }
 
 function People (defaults) {
-  return model({
-    arr: defaults,
-    selectedID: null
-  }, {
-    select: (id, people, update) => {
-      if (people.selectedID === id) update({selectedID: null})
-      else update({selectedID: id})
-    },
-    filter: (search, people, update) => {
-      people.arr.forEach(person => {
-        person.actions.filter(search)
-        if (people.selectedID === person.id && person.hidden) {
-          update({selectedID: null})
-        }
-      })
-    },
-    updatePerson: (ev, people, update) => {
-      const person = findPerson(people.selectedID, people.arr)
-      const [last, first] = getNameFromForm(ev.currentTarget.form)
-      person.actions.setName([last, first])
-      people.actions.filter('')
-    },
-    createPerson: (ev, people, update) => {
-      const [last, first] = getNameFromForm(ev.currentTarget.form)
-      if (!last.length || !first.length) return
-      const newPerson = Person(last, first)
-      const arr = people.arr.concat([newPerson])
-      update({arr, selectedID: newPerson.id})
-      people.actions.filter('')
-    },
-    deletePerson: (_, people, update) => {
-      const idx = people.arr.findIndex(p => p.id === people.selectedID)
-      people.arr.splice(idx, 1)
-      update({arr: people.arr, selectedID: null})
-    }
+  const obj = defaults.reduce((acc, p) => { acc[p.id] = p; return acc }, {})
+  return model({ arr: defaults, obj, selectedID: null, search: '' })
+}
+
+function filterPerson (search, person) {
+  const fullName = person.first + ' ' + person.last
+  const idx = fullName.toLowerCase().indexOf(search.toLowerCase())
+  person.update({hidden: idx === -1})
+}
+
+function select (id, people) {
+  if (people.selectedID === id) people.update({selectedID: null})
+  else people.update({selectedID: id})
+}
+
+function filter (search, people) {
+  people.update({search})
+  people.arr.forEach(person => {
+    filterPerson(search, person)
   })
+  // Deselect the currently selected person if they are hidden
+  if (people.selectedID !== null) {
+    const sel = people.obj[people.selectedID]
+    if (sel.hidden) {
+      people.update({selectedID: null})
+    }
+  }
+}
+
+function updatePerson (ev, people) {
+  const person = people.obj[people.selectedID]
+  if (!person) return
+  const [last, first] = getNameFromForm(ev.currentTarget.form)
+  person.update({last, first})
+  filter('', people)
+}
+
+function createPerson (ev, people) {
+  const [last, first] = getNameFromForm(ev.currentTarget.form)
+  if (!last.length || !first.length) return
+  const newPerson = Person(last, first)
+  people.arr.push(newPerson)
+  people.obj[newPerson.id] = newPerson
+  people.update({arr: people.arr, obj: people.obj, selectedID: newPerson.id})
+  filter('', people)
+}
+
+function deletePerson (people) {
+  const idx = people.arr.findIndex(p => p.id === people.selectedID)
+  people.arr.splice(idx, 1)
+  delete people.obj[people.selectedID]
+  people.update({arr: people.arr, obj: people.obj, selectedID: null})
 }
 
 function getNameFromForm (form) {
@@ -64,30 +73,25 @@ function getNameFromForm (form) {
   return [last, first]
 }
 
-const findPerson = (id, arr) => {
-  const idx = arr.findIndex(p => p.id === id)
-  return arr[idx]
-}
-
 function view (people) {
   // inputs
-  const filterInput = html`<input onkeyup=${ev => people.actions.filter(ev.currentTarget.value)} type='text'>`
+  const filterInput = html`<input onkeyup=${ev => filter(ev.currentTarget.value, people)} type='text'>`
   const firstNameInput = html`<input type='text' name='first'>`
   const lastNameInput = html`<input type='text' name='last'>`
   // buttons
-  const createBtn = html`<button type='button' onclick=${people.actions.createPerson}> Create </button>`
-  const updateBtn = html`<button type='button' onclick=${people.actions.updatePerson}> Update </button>`
-  const deleteBtn = html`<button type='button' onclick=${people.actions.deletePerson}> Delete </button>`
+  const createBtn = html`<button type='button' onclick=${ev => createPerson(ev, people)}> Create </button>`
+  const updateBtn = html`<button type='button' onclick=${ev => updatePerson(ev, people)}> Update </button>`
+  const deleteBtn = html`<button type='button' onclick=${() => deletePerson(people)}> Delete </button>`
   const peopleDivs = dom.childSync({
     view: peopleDiv(people),
-    container: 'div',
     model: people,
-    prop: 'arr'
+    key: 'arr'
   })
 
+  people.onUpdate('search', s => { filterInput.value = s })
   people.onUpdate('selectedID', id => {
     if (id !== null) {
-      const person = findPerson(id, people.arr)
+      const person = people.obj[id]
       firstNameInput.value = person.first
       lastNameInput.value = person.last
     } else {
@@ -99,7 +103,7 @@ function view (people) {
   return html`
     <div>
       <div>
-        Filter prefix: 
+        Filter prefix:
         ${filterInput}
       </div>
       <div>
@@ -122,8 +126,7 @@ const peopleDiv = people => person => {
   person.onUpdate(['first', 'last'], () => {
     nameSpan.textContent = person.last + ', ' + person.first
   })
-  const select = ev => people.actions.select(person.id)
-  const div = html`<div onclick=${select}> ${nameSpan} </div>`
+  const div = html`<div onclick=${() => select(person.id, people)}> ${nameSpan} </div>`
   div.style.cursor = 'pointer'
   person.onUpdate('hidden', h => {
     div.style.display = h ? 'none' : 'block'

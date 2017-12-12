@@ -1,8 +1,8 @@
-# uzu state machines
+# uzu/statechart
 
-Statecharts are useful for managing complicated asynchronous UI. This is a small and stateless implementation of these statecharts, here called "machines", that can wrap several vanilla Uzu state objects.
+Statecharts are useful for managing complicated asynchronous UI. This is a small and stateless implementation of these statecharts.
 
-Statecharts fit well as a property within a [/model](/model).
+Statecharts fit well as a value within a [/model](/model).
 
 ```js
 const state = statechart({
@@ -41,3 +41,12 @@ state.hasResults // -> undefined
 ```
 
 You can run multiple, parallel states simply by setting multiple keys to true in the `initial` object.
+
+## Nested states
+
+Coming soon.
+
+## Transition guards
+
+Coming soon.
+

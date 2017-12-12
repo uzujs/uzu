@@ -1,112 +1,113 @@
 const model = require('../../model')
 const html = require('bel')
 const dom = require('../../dom')
-const History = require('../../undo-redo')
+const history = require('../../undo-redo')
 
 var id = 1
 function Circle (x, y, radius) {
-  return model({radius, x, y, id: id++, selected: false}, {
-    setRadius: (rad, c, update) => update({radius: rad}),
-    toggleSelect: (_, c, update) => update({selected: !c.selected})
-  })
+  return model({radius, x, y, id: id++, selected: false})
 }
 
 function CircleCollection () {
   const defaultDiameter = 100
   return model({
     circles: [],
-    history: History(),
+    history: history.create(),
     selected: null,
     diameter: defaultDiameter,
     defaultDiameter
-  }, {
-    selectCircle: (circle, coll, update) => {
-      if (coll.selected === circle) return
-      if (coll.selected) coll.selected.actions.toggleSelect()
-      update({selected: circle, diameter: circle.radius * 2})
-      circle.actions.toggleSelect()
-    },
-    deselectCircle: (_, coll, update) => {
-      if (coll.selected) coll.selected.actions.toggleSelect()
-      update({selected: null, diameter: coll.defaultDiameter})
-    },
-    toggleSelection: (id, coll, update) => {
-      if (coll.selected && coll.selected.id === id) {
-        coll.actions.deselectCircle()
-      } else {
-        const circ = coll.circles.filter(c => c.id === id)[0]
-        coll.actions.selectCircle(circ)
-      }
-    },
-    createCircle: ([x, y], coll, update) => {
-      const circle = Circle(x, y, coll.diameter / 2)
-      // push the circle !
-      const forward = () => {
-        coll.circles.push(circle)
-        coll.actions.selectCircle(circle)
-        update({circles: coll.circles})
-      }
-      // pop the circle on undo
-      const backward = () => {
-        coll.circles.pop()
-        update({circles: coll.circles})
-        coll.actions.deselectCircle()
-      }
-      coll.history.actions.applyAction([forward, backward])
-    },
-    createOrSelect: (event, coll, update) => {
-      if (event.target.tagName === 'circle') {
-        // Select an existing circle
-        const id = Number(event.target.getAttribute('data-id'))
-        coll.actions.toggleSelection(id)
-      } else {
-        // User clicked blank white space; create a new circle
-        const x = event.offsetX
-        const y = event.offsetY
-        coll.actions.createCircle([x, y])
-      }
-    },
-    // Set the diameter for an existing circle
-    setDiameter: (event, coll, update) => {
-      const oldDiam = coll.diameter
-      const newDiam = Number(event.currentTarget.value)
-      const circle = coll.selected
-      if (circle) {
-        const forward = () => {
-          update({diameter: newDiam})
-          circle.actions.setRadius(newDiam / 2)
-        }
-        const backward = () => {
-          update({diameter: oldDiam})
-          circle.actions.setRadius(oldDiam / 2)
-        }
-        coll.history.actions.applyAction([forward, backward])
-      } else {
-        update({diameter: newDiam})
-      }
-    }
   })
 }
 
-function view (collection) {
+function selectCircle (circle, coll) {
+  if (coll.selected === circle) return
+  if (coll.selected) coll.selected.update({selected: false})
+  coll.update({selected: circle, diameter: circle.radius * 2})
+  circle.update({selected: true})
+}
+
+function deselectCircle (coll) {
+  if (coll.selected) coll.selected.update({selected: false})
+  coll.update({selected: null, diameter: coll.defaultDiameter})
+}
+
+function toggleSelection (id, coll) {
+  if (coll.selected && coll.selected.id === id) {
+    deselectCircle(coll)
+  } else {
+    const circ = coll.circles.find(c => c.id === id)
+    selectCircle(circ, coll)
+  }
+}
+
+function createCircle ([x, y], coll) {
+  const circle = Circle(x, y, coll.diameter / 2)
+  // push the circle !
+  const forward = () => {
+    coll.circles.push(circle)
+    selectCircle(circle, coll)
+    coll.update({circles: coll.circles})
+  }
+  // pop the circle on undo
+  const backward = () => {
+    coll.circles.pop()
+    coll.update({circles: coll.circles})
+    deselectCircle(coll)
+  }
+  history.applyAction([forward, backward], coll.history)
+}
+
+function createOrSelect (event, coll) {
+  if (event.target.tagName === 'circle') {
+    // Select an existing circle
+    const id = Number(event.target.getAttribute('data-id'))
+    toggleSelection(id, coll)
+  } else {
+    // User clicked blank white space; create a new circle
+    const x = event.offsetX
+    const y = event.offsetY
+    createCircle([x, y], coll)
+  }
+}
+
+// Set the diameter for an existing circle
+function setDiameter (event, coll) {
+  const oldDiam = coll.diameter
+  const newDiam = Number(event.currentTarget.value)
+  const circle = coll.selected
+  if (circle) {
+    const forward = () => {
+      coll.update({diameter: newDiam})
+      circle.update({radius: newDiam / 2})
+    }
+    const backward = () => {
+      coll.update({diameter: oldDiam})
+      circle.update({radius: oldDiam / 2})
+    }
+    history.applyAction([forward, backward], coll.history)
+  } else {
+    coll.update({diameter: newDiam})
+  }
+}
+
+function view (coll) {
   // svg and circle elements
   const g = html`<g stroke-width='1' stroke='black' fill='white'></g>`
   const circles = dom.childSync({
-    view: circleView(collection),
+    view: circleView,
     container: g,
-    model: collection,
-    prop: 'circles'
+    model: coll,
+    key: 'circles'
   })
-  const svg = html`<svg onclick=${collection.actions.createOrSelect}> ${circles} </svg>`
+  const svg = html`<svg onclick=${ev => createOrSelect(ev, coll)}> ${circles} </svg>`
 
   // inputs
-  const slider = html`<input type='range' min=10 max=200 value=${collection.diameter} onchange=${collection.actions.setDiameter}>`
-  collection.onUpdate('diameter', d => { slider.value = d })
-  const undoBtn = html`<button onclick=${collection.history.actions.undo}> Undo </button>`
-  const redoBtn = html`<button onclick=${collection.history.actions.redo}> Redo </button>`
-  const history = collection.history
-  history.onUpdate('undoStack', b => { undoBtn.disabled = !b.length })
-  history.onUpdate('redoStack', f => { redoBtn.disabled = !f.length })
+  const slider = html`<input type='range' min=10 max=200 value=${coll.diameter} onchange=${ev => setDiameter(ev, coll)}>`
+  coll.onUpdate('diameter', d => { slider.value = d })
+  const undoBtn = html`<button onclick=${() => history.undo(coll.history)}> Undo </button>`
+  const redoBtn = html`<button onclick=${() => history.redo(coll.history)}> Redo </button>`
+  coll.history.onUpdate('undoStack', s => { undoBtn.disabled = !s.length })
+  coll.history.onUpdate('redoStack', s => { redoBtn.disabled = !s.length })
 
   return html`
     <div style='text-align: center'>
@@ -137,7 +138,7 @@ function view (collection) {
   `
 }
 
-const circleView = collection => circle => {
+const circleView = circle => {
   const circElm = html`<circle cx=${circle.x} cy=${circle.y} r=${circle.radius} data-id=${circle.id}>`
   circle.onUpdate('selected', selected => {
     circElm.setAttribute('fill', selected ? '#888' : 'white')

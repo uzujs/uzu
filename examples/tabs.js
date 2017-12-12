@@ -8,8 +8,7 @@ function view () {
   const tabModel = model({page: 'a'})
   const tabs = dom.route({
     model: tabModel,
-    prop: 'page',
-    container: 'div',
+    key: 'page',
     routes: {
       a: viewA(tabModel),
       b: viewB(tabModel),

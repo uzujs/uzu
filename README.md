@@ -1,13 +1,13 @@
 # :cyclone: uzu :cyclone:
 
-Uzu is an ultra simple, expressive, and modular UI system for the web. It works with the plain DOM API and is inspired by streams, statecharts, and other dynamic systems.
+Uzu is an ultra small, expressive, and modular UI library that is designed to be simple and practical. It works closely with the plain DOM API.
 
 _Modules_
-* [/model](/model) -- save and set data
-* [/statechart](/statechart) -- stateless state graphs
-* [/dom](/dom) -- helpers for rendering elements
-* [/canvas](/canvas) -- work in progress
-* [/undo-redo](/undo-redo) -- action-based undo/redo functionality
+* **[/model](/model)** -- save and update data
+* **[/dom](/dom)** -- utilities for rendering models into DOM nodes
+* **[/statechart](/statechart)** -- design UI with state machines
+* **[/canvas](/canvas)** -- render models into canvas animations (WIP)
+* **[/undo-redo](/undo-redo)** -- action-based undo/redo functionality
 
 **Examples!**
 * [todo MVC](/examples/todo.js) (no styling)
@@ -29,7 +29,7 @@ _Modules_
 Uzu is designed with different layers of modularity in mind.
 
 * Models and statecharts are designed to prevent spaghetti code
-* UI can be controlled in a declarative way with statecharts
+* UI can be designed in a top-down, declarative way with statecharts
 * Views are decoupled from models; the same model can be represented by many different views
 * Models and logic can live in separate modules and files
 * Views can take any parameters that you want, and any number of models

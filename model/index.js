@@ -1,59 +1,62 @@
-var EventEmitter = require('events')
+module.exports = Model
 
-module.exports = model
+function Model (initialData) {
+  var model = initialData || {}
+  model._handlers = {}
 
-function model (initialData, actions) {
-  if (!initialData || typeof initialData !== 'object') {
-    throw new TypeError('Pass in an object of initial data when first creating the model. Got: ' + initialData)
-  }
-  var emitter = new EventEmitter()
-  var model = initialData
-  actions = actions || {}
-  model._emitter = emitter
-
-  model.onUpdate = function on (props, fn) {
-    if (typeof props === 'string') props = [props]
-    if (!Array.isArray(props)) {
-      throw new TypeError('Pass in a single prop name or array of props')
-    }
-    for (var i = 0; i < props.length; ++i) {
-      var prop = props[i]
-      if (!model.hasOwnProperty(prop)) {
-        throw new TypeError(`Undefined property '${prop}' for model`)
+  model.onUpdate = function onUpdate (keys, fn) {
+    if (typeof keys === 'string') keys = [keys]
+    for (var i = 0; i < keys.length; ++i) {
+      var key = keys[i]
+      if (!model.hasOwnProperty(key)) {
+        throw new TypeError(`Undefined key '${key}' for model`)
       }
-      fn(model[prop])
-      var handler = function (val) { fn(val) }
-      emitter.on('update:' + prop, handler)
-      var global
-      try { global = window } catch (e) { global = process }
-      if (global && global.__uzu_onBind) {
-        global.__uzu_onBind(emitter, 'update:' + prop, handler)
+      fn(model[key])
+      if (!model._handlers[key]) model._handlers[key] = []
+      model._handlers[key].push(fn)
+      if (Model.handlerCache) {
+        // Push an unlistener function to the handlerCache
+        Model.handlerCache.push(function () {
+          model._handlers[key] = model._handlers[key].filter(function (otherFn) {
+            return otherFn !== fn
+          })
+        })
       }
       return model
     }
   }
 
-  function update (data) {
-    for (var name in data) {
-      if (!model.hasOwnProperty(name)) {
-        throw new TypeError('Invalid property for model: ' + name)
+  model.update = function update (data) {
+    for (var key in data) {
+      if (!model.hasOwnProperty(key)) {
+        throw new TypeError('Invalid key for model: ' + key)
       }
-      model[name] = data[name]
-      emitter.emit('update:' + name, data[name])
+      model[key] = data[key]
+      if (model._handlers[key]) {
+        model._handlers[key].forEach(function (callback) {
+          callback(model[key])
+        })
+      }
     }
     return model
   }
 
-  model.actions = {}
-  function event (actionName) {
-    return function (data) {
-      actions[actionName](data, model, update)
-      return model
+  return model
+}
+
+Model.handlerCache = null
+
+// Catch all event listeners/handlers created during the length of a function
+Model.cacheHandlers = function (fn) {
+  Model.handlerCache = []
+  fn()
+  var localCache = Model.handlerCache.slice(0)
+  Model.handlerCache = null
+  // Return an unlistener function
+  return function () {
+    for (var i = 0; i < localCache.length; ++i) {
+      // Each element in the cache is an unlistener function
+      localCache[i]()
     }
   }
-  for (var actionName in actions) {
-    model.actions[actionName] = event(actionName)
-  }
-
-  return model
 }

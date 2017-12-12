@@ -1,83 +1,94 @@
-var assert = require('assert')
-var catchListeners = require('../lib/catch-listeners')
+var model = require('../model')
+var dom = {}
+module.exports = dom
 
-module.exports = {}
-
-module.exports.childSync = function childSync (options) {
-  assert.strictEqual(typeof options.view, 'function', 'Missing option: pass a function in the .view property')
-  assert(options.container, 'Missing option: pass a .container property (can be a string or HTMLElement)')
-  assert(options.model && typeof options.model === 'object', 'pass in a model object in the .model property')
-  assert.strictEqual(typeof options.prop, 'string', 'pass in a model property string in the .prop property')
-
+dom.childSync = function childSync (options) {
   // Convert the container to a basic dom if it is a string tagname
-  if (typeof options.container === 'string') {
+  if (!options.container) {
+    options.container = document.createElement('span')
+  } else if (typeof options.container === 'string') {
     options.container = document.createElement(options.container)
   }
   var container = options.container
   var inserted = {} // track already-inserted dom nodes based on object id
-  options.model.onUpdate(options.prop, update)
+  if (!('key' in options)) throw new Error('Pass a .key into childSync options')
+  options.model.onUpdate(options.key, update)
 
   // Given a new set of data, update the child dom elements
-  function update () {
-    var arr = options.model[options.prop]
-    for (var i = 0; i < arr.length; ++i) {
-      var elem = arr[i]
-      if (!elem.hasOwnProperty('id')) {
-        throw new TypeError('Each object in the array must have an "id" property')
-      }
-      var existing = inserted[elem.id]
-      if (existing) {
-        if (container.children[i] !== existing.dom) {
-          container.insertBefore(existing.dom, container.children[i])
-        }
-      } else { // append a new node
-        var newNode
-        var listeners = catchListeners(function () {
-          newNode = options.view(elem, i)
-        })
-        newNode.dataset['uzu_child_id'] = elem.id
-        inserted[elem.id] = {dom: newNode, listeners: listeners}
-        if (container.children[i]) {
-          container.insertBefore(newNode, container.children[i])
-        } else {
-          container.appendChild(newNode)
-        }
+  function update (arr) {
+    // Mark each new element in an object
+    var obj = {}
+    var idx
+    var id
+    var elem
+
+    for (idx = 0; idx < arr.length; ++idx) {
+      elem = arr[idx]
+      if (!elem || !elem.hasOwnProperty('id')) throw new Error('Each object in your array should have a .id')
+      obj[elem.id] = true
+    }
+
+    // Find all removed elements
+    for (id in inserted) {
+      if (!obj[id]) {
+        container.removeChild(inserted[id].node)
+        inserted[id].unlisten()
+        delete inserted[id]
       }
     }
-    // Remove any stragglers
-    for (var j = arr.length; j < container.children.length; ++j) {
-      var id = container.children[j].dataset['uzu_child_id']
-      inserted[id].listeners.forEach(function (listener) {
-        listener.emitter.removeListener(listener.eventName, listener.handler)
-      })
-      delete inserted[id]
-      container.removeChild(container.children[j])
+
+    // Sync existing and new elements
+    for (idx = 0; idx < arr.length; ++idx) {
+      id = arr[idx].id
+      elem = inserted[id]
+      if (!elem) {
+        var elemModel = model({idx: idx})
+        var node
+        var unlisten = model.cacheHandlers(function () {
+          node = options.view(arr[idx], elemModel)
+          node.dataset['uzu_id'] = id
+        })
+        elem = {model: elemModel, node: node, unlisten: unlisten}
+        inserted[id] = elem
+      } else {
+        if (idx !== elem.model.idx) {
+          elem.model.update({idx: idx})
+        }
+      }
+
+      var existingNode = container.children[idx]
+      if (existingNode) {
+        if (String(existingNode.dataset['uzu_id']) !== String(id)) {
+          container.insertBefore(elem.node, existingNode)
+        }
+      } else {
+        container.appendChild(elem.node)
+      }
     }
   }
   return container
 }
 
-module.exports.route = function route (options) {
-  assert.strictEqual(typeof options.model, 'object', 'pass in a model in the .model property')
-  assert.strictEqual(typeof options.prop, 'string', 'pass in a property string in the .prop property')
-  assert(options.container, 'pass in a .container property in options -- can be a string or HTMLElement')
-  assert(typeof options.routes, 'object', 'pass in a routes object in the .routes property')
-
-  if (typeof options.container === 'string') options.container = document.createElement(options.container)
-  var listeners = []
-  var prevPage = null
-  options.model.onUpdate(options.prop, function (p) {
-    if (p === prevPage) return
-    prevPage = p
-    listeners.forEach(function (listener) {
-      listener.emitter.removeListener(listener.eventName, listener.handler)
-    })
+dom.route = function route (options) {
+  if (!options.container) {
+    options.container = document.createElement('span')
+  } else if (typeof options.container === 'string') {
+    options.container = document.createElement(options.container)
+  }
+  var prevPage
+  var unlisten
+  options.model.onUpdate(options.key, function (page) {
+    if (page === prevPage) return
     var child
-    listeners = catchListeners(function () {
-      child = options.routes[p]()
+    if (unlisten) unlisten()
+    unlisten = model.cacheHandlers(function () {
+      child = options.routes[page]()
     })
-    if (options.container.firstChild) options.container.removeChild(options.container.firstChild)
+    while (options.container.firstChild) {
+      options.container.removeChild(options.container.firstChild)
+    }
     options.container.appendChild(child)
+    prevPage = page
   })
   return options.container
 }

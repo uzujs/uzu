@@ -1,4 +1,4 @@
-const Model = require('../../model')
+const model = require('../../model')
 const html = require('bel')
 const statechart = require('../../statechart')
 
@@ -17,46 +17,79 @@ const cellState = statechart({
 })
 
 function Cell (name) {
-  return Model({
+  return model({
     name,
     state: cellState,
     input: null,
     output: null,
     references: [], // array of other cell names that this one references
     evaluateFn: null
-  }, {
-    edit: (_, c, update) => update({state: c.state.event('EDIT')}),
-    evaluate: (sheet, c, update) => {
-      if (c.evaluateFn) update({output: c.evaluateFn(sheet)})
-    },
-    setInput: (val, cell, update) => {
-      if (cell.input === val) return
-      update({input: val, references: []})
-      if (val === '') { // blank out cell
-        resetCell(update)
-        return update({state: cell.state.event('OK')})
-      }
-      let [term1, op, term2] = val.split(/([-+/*])/).map(val => val.trim())
-      op = op || 'no-op'
-      if (isRef(term1)) cell.references.push(term1)
-      if (isRef(term2)) cell.references.push(term2)
-
-      if (!validateFormula(term1, op, term2)) {
-        resetCell(update)
-        return update({state: cell.state.event('ERR')})
-      }
-      const evaluateFn = (sheet) => {
-        let val1 = isRef(term1) ? sheet.hash[term1].output : Number(term1)
-        let val2 = isRef(term2) ? sheet.hash[term2].output : Number(term2)
-        return opFunctions[op](val1, val2)
-      }
-      update({state: cell.state.event('OK'), evaluateFn})
-    }
   })
 }
 
-const resetCell = update =>
-  update({output: null, evaluateFn: null, references: []})
+function edit (cell) {
+  cell.update({state: cell.state.event('EDIT')})
+}
+
+function evalCell (sheet, cell) {
+  if (cell.evaluateFn) {
+    cell.update({output: cell.evaluateFn(sheet)})
+  }
+}
+
+function setInputOnCell (val, cell) {
+  if (cell.input === val) return
+  cell.update({input: val, references: []})
+  if (val === '') { // blank out cell
+    resetCell(cell)
+    return cell.update({state: cell.state.event('OK')})
+  }
+  let [term1, op, term2] = val.split(/([-+/*])/).map(val => val.trim())
+  op = op || 'no-op'
+  if (isRef(term1)) cell.references.push(term1)
+  if (isRef(term2)) cell.references.push(term2)
+
+  if (!validateFormula(term1, op, term2)) {
+    resetCell(cell)
+    return cell.update({state: cell.state.event('ERR')})
+  }
+  const evaluateFn = (sheet) => {
+    let val1 = isRef(term1) ? sheet.hash[term1].output : Number(term1)
+    let val2 = isRef(term2) ? sheet.hash[term2].output : Number(term2)
+    return opFunctions[op](val1, val2)
+  }
+  cell.update({state: cell.state.event('OK'), evaluateFn})
+}
+
+function setInputOnSheet (sheet, cell, ev) {
+  const input = ev.currentTarget.value
+  // Remove old references
+  cell.references.forEach(name => {
+    sheet.dependents[name][cell.name] = undefined
+  })
+  setInputOnCell(input, cell)
+  evalCell(sheet, cell)
+  // Save new references
+  cell.references.forEach(name => {
+    sheet.dependents[name][cell.name] = true
+  })
+  triggerUpdateChain(sheet, cell)
+}
+
+// A cell with name `name` has been updated
+// We want to update all other cells that depend on it
+// and any cells that depend on its dependencies, etc
+function triggerUpdateChain (sheet, cell) {
+  // Update all other cells that reference this one
+  for (let name in sheet.dependents[cell.name]) {
+    let dep = sheet.hash[name]
+    evalCell(sheet, dep)
+    triggerUpdateChain(sheet, dep)
+  }
+}
+
+const resetCell = cell =>
+  cell.update({output: null, evaluateFn: null, references: []})
 
 const opFunctions = {
   'no-op': (x) => x,
@@ -101,27 +134,7 @@ function Sheet () {
       dependents[name] = {}
     }
   }
-  return Model({rows, hash, dependents}, {
-    setInput: ([cell, ev], sheet, update) => {
-      const input = ev.currentTarget.value
-      // Remove old references
-      cell.references.forEach(name => {
-        sheet.dependents[name][cell.name] = undefined
-      })
-      cell.actions.setInput(input)
-      cell.actions.evaluate(sheet)
-      if (!cell.references.length) return
-      // Save new references
-      cell.references.forEach(name => {
-        sheet.dependents[name][cell.name] = true
-      })
-      // Update all other cells that reference this one
-      for (let name in sheet.dependents[cell.name]) {
-        let dep = sheet.hash[name]
-        dep.actions.evaluate(sheet)
-      }
-    }
-  })
+  return model({rows, hash, dependents})
 }
 
 function view (sheet) {
@@ -166,22 +179,21 @@ function view (sheet) {
 function cellView (cell, sheet) {
   // nested model to control the hiding/showing of the input and output text
   const changeInput = ev => {
-    sheet.actions.setInput([cell, ev])
+    if (cell.state.displaying) return
+    setInputOnSheet(sheet, cell, ev)
   }
   const doubleClick = ev => {
-    cell.actions.edit()
+    edit(cell)
     input.focus()
   }
   const input = html`<input type='text' onchange=${changeInput} onblur=${changeInput}>`
   const output = html`<span class='output' ondblclick=${doubleClick}></span>`
-
   cell.onUpdate('output', val => { output.innerHTML = val || '&nbsp;' })
   cell.onUpdate('state', s => {
     output.classList.toggle('error', Boolean(s.hasError))
     input.style.display = s.editing ? 'inline-block' : 'none'
     output.style.display = s.displaying || s.hasError ? 'inline-block' : 'none'
   })
-
   return html`<span> ${input} ${output} </span>`
 }
 

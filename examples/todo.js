@@ -1,4 +1,4 @@
-const Model = require('../model')
+const model = require('../model')
 const Statechart = require('../statechart')
 const dom = require('../dom')
 const html = require('bel')
@@ -16,73 +16,74 @@ const taskState = Statechart({
 
 var id = 0
 function Task (name) {
-  return Model({name, id: id++, state: taskState}, {
-    // trigger any state transition
-    event: (evName, m, update) => update({state: m.state.event(evName)})
-  })
+  return model({name, id: id++, state: taskState})
 }
 
 function List () {
-  return Model({tasks: [], remaining: 0, filter: 'all'}, {
-    toggleComplete: (task, m, update) => {
-      if (task.state.completed) {
-        task.actions.event('PEND')
-        update({remaining: m.remaining + 1})
-      } else {
-        task.actions.event('COMPLETE')
-        update({remaining: m.remaining - 1})
-      }
-    },
-    addNew: (ev, m, update) => {
-      ev.preventDefault() // form submit
-      const name = ev.currentTarget.querySelector('input').value
-      if (!name || !name.length) return
-      ev.currentTarget.reset()
-      update({
-        tasks: m.tasks.concat([Task(name)]),
-        remaining: m.remaining + 1
-      })
-    },
-    removeTask: (task, m, update) => {
-      const tasks = m.tasks.filter(t => t.id !== task.id)
-      // Recalculate total remaining
-      // true -> 1, false -> 0
-      const remaining = tasks.reduce((sum, t) => sum + Number(!t.state.completed), 0)
-      update({tasks, remaining})
-    },
-    showAll: (_, m, update) => {
-      update({filter: 'all'})
-      m.tasks.forEach(t => t.actions.event('SHOW'))
-    },
-    showActive: (_, m, update) => {
-      update({filter: 'active'})
-      m.tasks.forEach(t => t.actions.event(t.state.completed ? 'HIDE' : 'SHOW'))
-    },
-    showCompleted: (_, m, update) => {
-      update({filter: 'completed'})
-      m.tasks.forEach(t => t.actions.event(t.state.completed ? 'SHOW' : 'HIDE'))
-    },
-    filterName: (ev, m, update) => {
-      const val = ev.currentTarget.value
-      m.tasks.forEach(t => {
-        const match = t.name.indexOf(val) > -1
-        t.actions.event(match ? 'SHOW' : 'HIDE')
-      })
-    }
+  return model({tasks: [], remaining: 0, filter: 'all'})
+}
+
+function toggleComplete (task, list) {
+  if (task.state.completed) {
+    task.update({state: task.state.event('PEND')})
+    list.update({remaining: list.remaining + 1})
+  } else {
+    task.update({state: task.state.event('COMPLETE')})
+    list.update({remaining: list.remaining - 1})
+  }
+}
+
+// Add a new task from a form submit event
+const addNew = list => ev => {
+  ev.preventDefault() // form submit
+  const name = ev.currentTarget.querySelector('input').value
+  if (!name || !name.length) return
+  ev.currentTarget.reset()
+  list.update({
+    tasks: list.tasks.concat([Task(name)]),
+    remaining: list.remaining + 1
+  })
+}
+
+function removeTask (task, list) {
+  const tasks = list.tasks.filter(t => t.id !== task.id)
+  // Recalculate total remaining
+  // true -> 1, false -> 0
+  const remaining = tasks.reduce((sum, t) => sum + Number(!t.state.completed), 0)
+  list.update({tasks, remaining})
+}
+
+function showAll (list) {
+  list.update({filter: 'all'})
+  list.tasks.forEach(t => {
+    t.update({state: t.state.event('SHOW')})
+  })
+}
+
+function showActive (list) {
+  list.update({filter: 'active'})
+  list.tasks.forEach(t => {
+    t.update({state: t.state.event(t.state.completed ? 'HIDE' : 'SHOW')})
+  })
+}
+
+function showCompleted (list) {
+  list.update({filter: 'completed'})
+  list.tasks.forEach(t => {
+    t.update({state: t.state.event(t.state.completed ? 'SHOW' : 'HIDE')})
   })
 }
 
 function view (list) {
   const taskForm = html`
-    <form onsubmit=${list.actions.addNew}>
+    <form onsubmit=${addNew(list)}>
       <input type='text' placeholder='What needs to be done?'>
     </form>
   `
   const tasks = dom.childSync({
     view: taskView(list),
-    container: 'div',
     model: list,
-    prop: 'tasks'
+    key: 'tasks'
   })
   return html`
     <div>
@@ -108,16 +109,13 @@ const remainingView = list => {
 
 const filters = list => {
   const filterAllBtn = html`
-    <button onclick=${list.actions.showAll}> All </button>
+    <button onclick=${() => showAll(list)}> All </button>
   `
   const filterActiveBtn = html`
-    <button onclick=${list.actions.showActive}> Active </button>
+    <button onclick=${() => showActive(list)}> Active </button>
   `
   const filterCompletedBtn = html`
-    <button onclick=${list.actions.showCompleted}> Completed </button>
-  `
-  const filterInput = html`
-    <input type='text' placeholder='By task name' onkeyup=${list.actions.filterName}>
+    <button onclick=${() => showCompleted(list)}> Completed </button>
   `
   list.onUpdate('filter', f => {
     filterAllBtn.disabled = f === 'all'
@@ -130,17 +128,16 @@ const filters = list => {
       <div> ${filterAllBtn} </div>
       <div> ${filterActiveBtn} </div>
       <div> ${filterCompletedBtn} </div>
-      <div> ${filterInput} </div>
     </div>
   `
 }
 
 const taskView = list => task => {
   const checkbox = html`
-    <input type='checkbox' onchange=${() => list.actions.toggleComplete(task)}>
+    <input type='checkbox' onchange=${() => toggleComplete(task, list)}>
   `
   const removeBtn = html`
-    <button onclick=${() => list.actions.removeTask(task)}>
+    <button onclick=${() => removeTask(task, list)}>
       remove
     </button>
   `
