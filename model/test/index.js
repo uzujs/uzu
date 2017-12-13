@@ -33,15 +33,15 @@ test('listening to an undefined property throws an err', t => {
 test('we can catch any and all listeners bound to multiple model', t => {
   const s1 = model({x: 1})
   const s2 = model({y: 1})
-  const unlisten = model.cacheHandlers(() => {
+  const unlisten = model.listen(() => {
     s1.onUpdate('x', x => { return 'hi' })
     s2.onUpdate('y', x => { return 'hi' })
   })
   t.ok(unlisten)
-  t.strictEqual(s1._handlers.x.length, 1)
-  t.strictEqual(s2._handlers.y.length, 1)
+  t.strictEqual(s1._listeners.x.length, 1)
+  t.strictEqual(s2._listeners.y.length, 1)
   unlisten()
-  t.strictEqual(s1._handlers.x.length, 0)
-  t.strictEqual(s2._handlers.y.length, 0)
+  t.strictEqual(s1._listeners.x.length, 0)
+  t.strictEqual(s2._listeners.y.length, 0)
   t.end()
 })

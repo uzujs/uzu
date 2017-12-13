@@ -44,7 +44,7 @@ test('childSync appends, removes, and reorders children', t => {
   list.update({elems: list.elems})
   t.strictEqual(ul.children.length, 3, 'correct number of children after remove')
   t.strictEqual(ul.textContent.replace(/\s/g, ''), 'acd', 'correct text content after remove')
-  t.strictEqual(b._handlers.name.length, 0, 'listener on b removed')
+  t.strictEqual(b._listeners.name.length, 0, 'listener on b removed')
   // Reorder
   const firstChild = ul.children[0]
   const secondChild = ul.children[1]
@@ -60,16 +60,16 @@ test('childSync appends, removes, and reorders children', t => {
   list.elems.splice(2, 1)
   list.update({elems: list.elems})
   t.strictEqual(ul.textContent.replace(/\s/g, ''), 'ca', 'correct text content')
-  t.strictEqual(d._handlers.name.length, 0, 'listener on d removed')
+  t.strictEqual(d._listeners.name.length, 0, 'listener on d removed')
   // Remove first child
   list.elems.splice(0, 1)
   list.update({elems: list.elems})
   t.strictEqual(ul.textContent.replace(/\s/g, ''), 'a', 'correct text content')
-  t.strictEqual(c._handlers.name.length, 0, 'listener on c removed')
+  t.strictEqual(c._listeners.name.length, 0, 'listener on c removed')
   // Replace array
   list.update({elems: []})
   t.strictEqual(ul.textContent.replace(/\s/g, ''), '', 'correct text content')
-  t.strictEqual(a._handlers.name.length, 0, 'listener on a removed')
+  t.strictEqual(a._listeners.name.length, 0, 'listener on a removed')
   t.end()
 })
 
@@ -101,14 +101,14 @@ test('route container always has correct the active child', t => {
   t.strictEqual(span.children.length, 1, 'has only one child for viewA')
   t.strictEqual(span.textContent.replace(/\s/g, ''), 'a', 'has viewA content')
   // One listeners for dom.route, plus one listener in the child view
-  t.strictEqual(router._handlers.page.length, 2, 'correct number of handlers')
+  t.strictEqual(router._listeners.page.length, 2, 'correct number of listeners')
   router.update({page: 'b'})
   t.strictEqual(span.children.length, 1, 'has only one child for viewB')
   t.strictEqual(span.textContent.replace(/\s/g, ''), 'b', 'has viewB content')
-  t.strictEqual(router._handlers.page.length, 2, 'correct number of handlers')
+  t.strictEqual(router._listeners.page.length, 2, 'correct number of listeners')
   router.update({page: 'c'})
   t.strictEqual(span.children.length, 1, 'has only one child for viewC')
   t.strictEqual(span.textContent.replace(/\s/g, ''), 'c', 'has viewC content')
-  t.strictEqual(router._handlers.page.length, 2, 'correct number of handlers')
+  t.strictEqual(router._listeners.page.length, 2, 'correct number of listeners')
   t.end()
 })

@@ -44,7 +44,7 @@ dom.childSync = function childSync (options) {
       if (!elem) {
         var elemModel = model({idx: idx})
         var node
-        var unlisten = model.cacheHandlers(function () {
+        var unlisten = model.listen(function () {
           node = options.view(arr[idx], elemModel)
           node.dataset['uzu_id'] = id
         })
@@ -81,7 +81,7 @@ dom.route = function route (options) {
     if (page === prevPage) return
     var child
     if (unlisten) unlisten()
-    unlisten = model.cacheHandlers(function () {
+    unlisten = model.listen(function () {
       child = options.routes[page]()
     })
     while (options.container.firstChild) {

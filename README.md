@@ -24,18 +24,22 @@ _Modules_
 
 # Patterns & philosophy
 
+Uzu is designed to be close to the metal. It doesn't abstract very much over built-in javascript, but provides just enough tools to keep things clean and efficient.
+
 ## Modularity
 
-Uzu is designed with different layers of modularity in mind.
+Uzu is designed with different layers of modularity in mind. A main goal is to allow people to write small and composable pieces.
 
-* Models and statecharts are designed to prevent spaghetti code
-* UI can be designed in a top-down, declarative way with statecharts
 * Views are decoupled from models; the same model can be represented by many different views
 * Models and logic can live in separate modules and files
+* Functions that update models are decoupled from the models themselves
+* UI state can be designed in a top-down, declarative way with statecharts
 * Views can take any parameters that you want, and any number of models
 * New models or other data can be returned by views, in addition to DOM nodes
 * The same model object can span many different views and easily be used in different parts of the page
 * Different views can reuse different instances of the same model
+
+In uzu, the views are the "origin of behavior". In other words, if you are trying to figure out why a certain button behaves in a certain way, you can find out by going to the button's view function, and then tracing its behavior from there.
 
 ### Using other libs -- no weird framework lock-in
 
