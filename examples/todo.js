@@ -3,20 +3,19 @@ const Statechart = require('../statechart')
 const dom = require('../dom')
 const html = require('bel')
 
-const taskState = Statechart({
-  states: ['completed', 'pending', 'hidden', 'visible'],
-  events: {
-    COMPLETE: ['pending', 'completed'],
-    PEND: ['completed', 'pending'],
-    SHOW: [['hidden', 'visible'], ['visible', 'visible']],
-    HIDE: [['visible', 'hidden'], ['hidden', 'hidden']]
-  },
-  initial: {pending: true, visible: true}
-})
-
 var id = 0
 function Task (name) {
-  return {name, id: id++, state: channel(taskState)}
+  const taskState = Statechart({
+    states: ['completed', 'pending', 'hidden', 'visible'],
+    events: {
+      COMPLETE: ['pending', 'completed'],
+      PEND: ['completed', 'pending'],
+      SHOW: [['hidden', 'visible'], ['visible', 'visible']],
+      HIDE: [['visible', 'hidden'], ['hidden', 'hidden']]
+    },
+    initial: {pending: true, visible: true}
+  })
+  return {name, id: id++, state: taskState}
 }
 
 function List () {
@@ -25,10 +24,10 @@ function List () {
 
 function toggleComplete (task, list) {
   if (task.state.value.completed) {
-    task.state.send(task.state.value.event('PEND'))
+    task.state.event('PEND')
     list.remaining.send(list.remaining.value + 1)
   } else {
-    task.state.send(task.state.value.event('COMPLETE'))
+    task.state.event('COMPLETE')
     list.remaining.send(list.remaining.value - 1)
   }
 }
@@ -54,20 +53,20 @@ function removeTask (task, list) {
 
 function showAll (list) {
   list.filter.send('all')
-  list.tasks.value.forEach(t => { t.state.send(t.state.value.event('SHOW')) })
+  list.tasks.value.forEach(t => { t.state.event('SHOW') })
 }
 
 function showActive (list) {
   list.filter.send('active')
   list.tasks.value.forEach(t => {
-    t.state.send(t.state.value.event(t.state.value.completed ? 'HIDE' : 'SHOW'))
+    t.state.event(t.state.value.completed ? 'HIDE' : 'SHOW')
   })
 }
 
 function showCompleted (list) {
   list.filter.send('completed')
   list.tasks.value.forEach(t => {
-    t.state.send(t.state.value.event(t.state.value.completed ? 'SHOW' : 'HIDE'))
+    t.state.event(t.state.value.completed ? 'SHOW' : 'HIDE')
   })
 }
 

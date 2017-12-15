@@ -1,6 +1,8 @@
 # uzu/statechart
 
-Statecharts are useful for managing complicated asynchronous UI. This is a small and stateless implementation of these statecharts.
+Statecharts are useful for managing complicated asynchronous UI. This is a small implementation of these statecharts. 
+
+The `statechart` function returns a state, which uses [channels](/channel). The API is the same, with the added method `state.event(eventName)`
 
 ```js
 const state = statechart({
@@ -13,29 +15,29 @@ const state = statechart({
   initial: {noResults: true}
 })
 
-state.noResults // -> true
-state.loading // -> undefined
-state.hasResults // -> undefined
+state.value.noResults // -> true
+state.value.loading // -> undefined
+state.value.hasResults // -> undefined
 
 state.event('SEARCH')
-state.noResults // -> undefined
-state.loading // -> true
-state.hasResults // -> undefined
+state.value.enoResults // -> undefined
+state.value.eloading // -> true
+state.value.ehasResults // -> undefined
 
 state.event('GOT_RESULTS')
-state.noResults // -> undefined
-state.loading // -> undefined
-state.hasResults // -> true
+state.value.noResults // -> undefined
+state.value.loading // -> undefined
+state.value.hasResults // -> true
 
 state.event('SEARCH')
-state.noResults // -> undefined
-state.loading // -> true
-state.hasResults // -> undefined
+state.value.noResults // -> undefined
+state.value.loading // -> true
+state.value.hasResults // -> undefined
 
 state.event('NO_RESULTS')
-state.noResults // -> true
-state.loading // -> undefined
-state.hasResults // -> undefined
+state.value.noResults // -> true
+state.value.loading // -> undefined
+state.value.hasResults // -> undefined
 ```
 
 You can run multiple, parallel states simply by setting multiple keys to true in the `initial` object.

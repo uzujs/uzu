@@ -2,21 +2,20 @@ const channel = require('../../channel')
 const html = require('bel')
 const statechart = require('../../statechart')
 
-const flightState = statechart({
-  states: ['booked', 'valid', 'invalid'],
-  events: {
-    BOOK: ['valid', 'booked'],
-    UNBOOK: ['booked', 'valid'],
-    ERR: [['valid', 'invalid'], ['invalid', 'invalid']],
-    OK: [['invalid', 'valid'], ['valid', 'valid']]
-  },
-  initial: {valid: true}
-})
-
 function Flight () {
+  const state = statechart({
+    states: ['booked', 'valid', 'invalid'],
+    events: {
+      BOOK: ['valid', 'booked'],
+      UNBOOK: ['booked', 'valid'],
+      ERR: [['valid', 'invalid'], ['invalid', 'invalid']],
+      OK: [['invalid', 'valid'], ['valid', 'valid']]
+    },
+    initial: {valid: true}
+  })
   return {
     way: channel('one-way'), // one-way | round-trip
-    state: channel(flightState),
+    state: state,
     startDate: channel('01.01.2020'),
     returnDate: channel('02.02.2020'),
     startErr: channel(false),
@@ -29,7 +28,7 @@ function setStartDate (ev, flight) {
   const isValid = validateDate(d)
   flight.startDate.send(d)
   flight.startErr.send(!isValid)
-  flight.state.send(flight.state.value.event(isValid ? 'OK' : 'ERR'))
+  flight.state.event(isValid ? 'OK' : 'ERR')
 }
 
 function setReturnDate (ev, flight) {
@@ -38,24 +37,17 @@ function setReturnDate (ev, flight) {
   const bothValid = !flight.startErr.value && isValid
   flight.returnDate.send(d)
   flight.returnErr.send(!isValid)
-  flight.state.send(flight.state.value.event(bothValid ? 'OK' : 'ERR'))
+  flight.state.event(bothValid ? 'OK' : 'ERR')
 }
 
 function changeWay (ev, flight) {
   flight.way.send(ev.currentTarget.value)
   if (flight.way === 'one-way') {
-    flight.state.send(flight.state.value.event(flight.startErr ? 'ERR' : 'OK'))
+    flight.state.event(flight.startErr ? 'ERR' : 'OK')
   } else {
     const bothValid = !flight.startErr.value && !flight.returnErr.value
-    flight.state.send(flight.state.value.event(bothValid ? 'OK' : 'ERR'))
+    flight.state.event(bothValid ? 'OK' : 'ERR')
   }
-}
-
-function book (flight) {
-  flight.state.send(flight.state.value.event('BOOK'))
-}
-function unbook (flight) {
-  flight.state.send(flight.state.value.event('UNBOOK'))
 }
 
 const validateDate = (d, after) => {
@@ -68,8 +60,8 @@ function view (flight) {
   // Inputs
   const startInput = html`<input type='text' oninput=${ev => setStartDate(ev, flight)} placeholder='DD.MM.YYYY' value=${flight.startDate.value}>`
   const returnInput = html`<input type='text' oninput=${ev => setReturnDate(ev, flight)} placeholder='DD.MM.YYYY' value=${flight.returnDate.value}>`
-  const bookBtn = html`<button onclick=${() => book(flight)}> Book </button>`
-  const unbookBtn = html`<button onclick=${() => unbook(flight)}> cancel booking </button>`
+  const bookBtn = html`<button onclick=${() => flight.state.event('BOOK')}> Book </button>`
+  const unbookBtn = html`<button onclick=${() => flight.state.event('UNBOOK')}> cancel booking </button>`
   const select = html`
     <select onchange=${ev => changeWay(ev, flight)}>
       <option value='one-way'>One way</option>

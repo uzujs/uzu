@@ -2,33 +2,28 @@ const channel = require('../../channel')
 const html = require('bel')
 const statechart = require('../../statechart')
 
-// statechart for a single spreadsheet cell
-const cellState = statechart({
-  states: ['displaying', 'editing', 'hasError'],
-  events: {
-    ERR: ['editing', 'hasError'],
-    OK: ['editing', 'displaying'],
-    EDIT: [
-      ['displaying', 'editing'],
-      ['hasError', 'editing']
-    ]
-  },
-  initial: {displaying: true}
-})
-
 function Cell (name) {
+  // statechart for a single spreadsheet cell
+  const cellState = statechart({
+    states: ['displaying', 'editing', 'hasError'],
+    events: {
+      ERR: ['editing', 'hasError'],
+      OK: ['editing', 'displaying'],
+      EDIT: [
+        ['displaying', 'editing'],
+        ['hasError', 'editing']
+      ]
+    },
+    initial: {displaying: true}
+  })
   return {
     name,
-    state: channel(cellState),
+    state: cellState,
     input: null,
     output: channel(null),
     references: [], // array of other cell names that this one references
     evaluateFn: null
   }
-}
-
-function edit (cell) {
-  cell.state.send(cell.state.value.event('EDIT'))
 }
 
 function evalCell (sheet, cell) {
@@ -43,7 +38,7 @@ function setInputOnCell (val, cell) {
   cell.references = []
   if (val === '') { // blank out cell
     resetCell(cell)
-    cell.state.send(cell.state.value.event('OK'))
+    cell.state.event('OK')
     return
   }
   let [term1, op, term2] = val.split(/([-+/*])/).map(val => val.trim())
@@ -53,7 +48,7 @@ function setInputOnCell (val, cell) {
 
   if (!validateFormula(term1, op, term2)) {
     resetCell(cell)
-    cell.state.send(cell.state.value.event('ERR'))
+    cell.state.event('ERR')
     return
   }
   cell.evaluateFn = (sheet) => {
@@ -61,7 +56,7 @@ function setInputOnCell (val, cell) {
     let val2 = isRef(term2) ? sheet.hash[term2].output.value : Number(term2)
     return opFunctions[op](val1, val2)
   }
-  cell.state.send(cell.state.value.event('OK'))
+  cell.state.event('OK')
 }
 
 function setInputOnSheet (sheet, cell, ev) {
@@ -190,7 +185,7 @@ function cellView (cell, sheet) {
     setInputOnSheet(sheet, cell, ev)
   }
   const doubleClick = ev => {
-    edit(cell)
+    cell.state.event('EDIT')
     input.focus()
   }
   const input = html`<input type='text' onchange=${changeInput} onblur=${changeInput}>`

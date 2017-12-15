@@ -2,23 +2,23 @@ const channel = require('../../channel')
 const statechart = require('../../statechart')
 const html = require('bel')
 
-const state = statechart({
-  states: ['running', 'paused', 'reset', 'finished'],
-  events: {
-    PAUSE: ['running', 'paused'],
-    RESET: [['running', 'reset'], ['finished', 'reset'], ['paused', 'reset']],
-    START: [['paused', 'running'], ['reset', 'running']],
-    DONE: ['running', 'finished']
-  },
-  initial: {reset: true}
-})
-
 function Timer () {
+  const state = statechart({
+    states: ['running', 'paused', 'reset', 'finished'],
+    events: {
+      PAUSE: ['running', 'paused'],
+      RESET: [['running', 'reset'], ['finished', 'reset'], ['paused', 'reset']],
+      START: [['paused', 'running'], ['reset', 'running']],
+      DONE: ['running', 'finished']
+    },
+    initial: {reset: true}
+  })
+
   return {
     elapsedMs: channel(0),
     duration: channel(10000),
     timeoutID: null,
-    state: channel(state)
+    state: state
   }
 }
 
@@ -28,7 +28,7 @@ function toggle (timer) {
     // Pause
     clearTimeout(timer.timeoutID)
     timer.timeoutID = null
-    timer.state.send(timer.state.value.event('PAUSE'))
+    timer.state.event('PAUSE')
   } else {
     startTimer(timer)
   }
@@ -38,7 +38,7 @@ function reset (timer) {
   clearTimeout(timer.timeoutID)
   timer.timeoutID = null
   timer.elapsedMs.send(0)
-  timer.state.send(timer.state.value.event('RESET'))
+  timer.state.event('RESET')
 }
 
 function setDuration (ev, timer) {
@@ -47,12 +47,12 @@ function setDuration (ev, timer) {
 
 const startTimer = (timer) => {
   // prevent timeouts from stacking when clicking reset
-  timer.state.send(timer.state.value.event('START'))
+  timer.state.event('START')
   let target = Date.now()
   function tick () {
     if (!timer.state.value.running) return
     if (timer.elapsedMs.value >= timer.duration.value) {
-      timer.state.send(timer.state.value.event('DONE'))
+      timer.state.event('DONE')
     }
     var now = Date.now()
     target += 100

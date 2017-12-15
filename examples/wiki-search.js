@@ -3,20 +3,20 @@ const channel = require('../channel')
 const statechart = require('../statechart')
 const dom = require('../dom')
 
-const searchState = statechart({
-  states: ['loading', 'hasResults', 'noResults'],
-  events: {
-    SEARCH: [['hasResults', 'loading'], ['noResults', 'loading']],
-    GOT_RESULTS: ['loading', 'hasResults'],
-    NO_RESULTS: ['loading', 'noResults']
-  },
-  initial: {noResults: true}
-})
-
 const WikiSearch = () => {
+  const searchState = statechart({
+    states: ['loading', 'hasResults', 'noResults'],
+    events: {
+      SEARCH: [['hasResults', 'loading'], ['noResults', 'loading']],
+      GOT_RESULTS: ['loading', 'hasResults'],
+      NO_RESULTS: ['loading', 'noResults']
+    },
+    initial: {noResults: true}
+  })
+
   return {
     results: channel([]),
-    state: channel(searchState)
+    state: searchState
   }
 }
 
@@ -25,12 +25,12 @@ const urlStr = 'https://en.wikipedia.org/w/api.php?action=query&format=json&gsrl
 const performSearch = model => event => {
   const searchStr = event.currentTarget.value
   if (!searchStr.length) return
-  model.state.send(model.state.value.event('SEARCH'))
+  model.state.event('SEARCH')
   window.fetch(urlStr + searchStr, {mode: 'cors'})
     .then(res => res.json())
     .then(data => {
       if (!data.query) {
-        model.state.send(model.state.value.event('NO_RESULTS'))
+        model.state.event('NO_RESULTS')
         model.results.send([])
       } else {
         // Assign id properties to each result object
@@ -42,7 +42,7 @@ const performSearch = model => event => {
           page.id = page.pageid
           arr.push(page)
         }
-        model.state.send(model.state.value.event('GOT_RESULTS'))
+        model.state.event('GOT_RESULTS')
         model.results.send(arr)
       }
     })

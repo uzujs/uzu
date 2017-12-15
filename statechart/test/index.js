@@ -63,25 +63,26 @@ test('it throws an error if an event transitions to a missing state', t => {
 })
 
 test('gives a new correct state on a transition event', t => {
-  const s1 = chart({states: ['s1', 's2'], events: {EV: ['s1', 's2']}, initial: {s1: true}})
-  t.assert(s1.s1)
-  t.notOk(s1.s2)
-  const s2 = s1.event('EV')
-  t.assert(s2.s2)
-  t.notOk(s2.s1)
+  const s = chart({states: ['s1', 's2'], events: {EV: ['s1', 's2']}, initial: {s1: true}})
+  t.assert(s.value.s1)
+  t.notOk(s.value.s2)
+  s.event('EV')
+  console.log('s.value', s.value)
+  t.assert(s.value.s2)
+  t.notOk(s.value.s1)
   t.end()
 })
 
 test('transitions correctly on loops', t => {
-  const loop1 = chart({states: ['s1'], events: {EV: ['s1', 's1']}, initial: {s1: true}})
-  const loop2 = loop1.event('EV')
-  t.assert(loop1.s1)
-  t.assert(loop2.s1)
+  const loop = chart({states: ['s1'], events: {EV: ['s1', 's1']}, initial: {s1: true}})
+  loop.event('EV')
+  t.assert(loop.value.s1)
+  t.assert(loop.value.s1)
   t.end()
 })
 
 test('it throws an error when transitioning from a blank initial state', t => {
-  const loop1 = chart({states: ['s1'], events: {EV: ['s1', 's1']}, initial: {}})
-  t.throws(() => loop1.event('EV'))
+  const loop = chart({states: ['s1'], events: {EV: ['s1', 's1']}, initial: {}})
+  t.throws(() => loop.event('EV'))
   t.end()
 })
