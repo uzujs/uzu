@@ -2,8 +2,6 @@
 
 Statecharts are useful for managing complicated asynchronous UI. This is a small and stateless implementation of these statecharts.
 
-Statecharts fit well as a value within a [/model](/model).
-
 ```js
 const state = statechart({
   states: ['loading', 'hasResults', 'noResults'],

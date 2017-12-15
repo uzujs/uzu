@@ -1,4 +1,4 @@
-const model = require('../../model')
+const channel = require('../../channel')
 const html = require('bel')
 const statechart = require('../../statechart')
 
@@ -17,32 +17,34 @@ const cellState = statechart({
 })
 
 function Cell (name) {
-  return model({
+  return {
     name,
-    state: cellState,
+    state: channel(cellState),
     input: null,
-    output: null,
+    output: channel(null),
     references: [], // array of other cell names that this one references
     evaluateFn: null
-  })
+  }
 }
 
 function edit (cell) {
-  cell.update({state: cell.state.event('EDIT')})
+  cell.state.send(cell.state.value.event('EDIT'))
 }
 
 function evalCell (sheet, cell) {
   if (cell.evaluateFn) {
-    cell.update({output: cell.evaluateFn(sheet)})
+    cell.output.send(cell.evaluateFn(sheet))
   }
 }
 
 function setInputOnCell (val, cell) {
   if (cell.input === val) return
-  cell.update({input: val, references: []})
+  cell.input = val
+  cell.references = []
   if (val === '') { // blank out cell
     resetCell(cell)
-    return cell.update({state: cell.state.event('OK')})
+    cell.state.send(cell.state.value.event('OK'))
+    return
   }
   let [term1, op, term2] = val.split(/([-+/*])/).map(val => val.trim())
   op = op || 'no-op'
@@ -51,14 +53,15 @@ function setInputOnCell (val, cell) {
 
   if (!validateFormula(term1, op, term2)) {
     resetCell(cell)
-    return cell.update({state: cell.state.event('ERR')})
+    cell.state.send(cell.state.value.event('ERR'))
+    return
   }
-  const evaluateFn = (sheet) => {
-    let val1 = isRef(term1) ? sheet.hash[term1].output : Number(term1)
-    let val2 = isRef(term2) ? sheet.hash[term2].output : Number(term2)
+  cell.evaluateFn = (sheet) => {
+    let val1 = isRef(term1) ? sheet.hash[term1].output.value : Number(term1)
+    let val2 = isRef(term2) ? sheet.hash[term2].output.value : Number(term2)
     return opFunctions[op](val1, val2)
   }
-  cell.update({state: cell.state.event('OK'), evaluateFn})
+  cell.state.send(cell.state.value.event('OK'))
 }
 
 function setInputOnSheet (sheet, cell, ev) {
@@ -88,8 +91,12 @@ function triggerUpdateChain (sheet, cell) {
   }
 }
 
-const resetCell = cell =>
-  cell.update({output: null, evaluateFn: null, references: []})
+const resetCell = cell => {
+  cell.output.send(null)
+  cell.evaluateFn = null
+  cell.references = []
+  return cell
+}
 
 const opFunctions = {
   'no-op': (x) => x,
@@ -134,7 +141,7 @@ function Sheet () {
       dependents[name] = {}
     }
   }
-  return model({rows, hash, dependents})
+  return {rows, hash, dependents}
 }
 
 function view (sheet) {
@@ -179,7 +186,7 @@ function view (sheet) {
 function cellView (cell, sheet) {
   // nested model to control the hiding/showing of the input and output text
   const changeInput = ev => {
-    if (cell.state.displaying) return
+    if (cell.state.value.displaying) return
     setInputOnSheet(sheet, cell, ev)
   }
   const doubleClick = ev => {
@@ -188,8 +195,8 @@ function cellView (cell, sheet) {
   }
   const input = html`<input type='text' onchange=${changeInput} onblur=${changeInput}>`
   const output = html`<span class='output' ondblclick=${doubleClick}></span>`
-  cell.onUpdate('output', val => { output.innerHTML = val || '&nbsp;' })
-  cell.onUpdate('state', s => {
+  cell.output.listen(val => { output.innerHTML = val === null ? '&nbsp;' : val })
+  cell.state.listen(s => {
     output.classList.toggle('error', Boolean(s.hasError))
     input.style.display = s.editing ? 'inline-block' : 'none'
     output.style.display = s.displaying || s.hasError ? 'inline-block' : 'none'

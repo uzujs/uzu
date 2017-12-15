@@ -1,57 +1,58 @@
-const model = require('../../model')
+const channel = require('../../channel')
 const html = require('bel')
 const dom = require('../../dom')
 const history = require('../../undo-redo')
 
 var id = 1
 function Circle (x, y, radius) {
-  return model({radius, x, y, id: id++, selected: false})
+  return {radius: channel(radius), x, y, id: id++, selected: channel(false)}
 }
 
 function CircleCollection () {
   const defaultDiameter = 100
-  return model({
-    circles: [],
+  return {
+    circles: channel([]),
     history: history.create(),
-    selected: null,
-    diameter: defaultDiameter,
+    selected: channel(null),
+    diameter: channel(defaultDiameter),
     defaultDiameter
-  })
+  }
 }
 
 function selectCircle (circle, coll) {
-  if (coll.selected === circle) return
-  if (coll.selected) coll.selected.update({selected: false})
-  coll.update({selected: circle, diameter: circle.radius * 2})
-  circle.update({selected: true})
+  if (coll.selected.value === circle) return
+  if (coll.selected.value) coll.selected.value.selected.send(false)
+  coll.selected.send(circle)
+  coll.diameter.send(circle.radius.value * 2)
+  circle.selected.send(true)
 }
 
 function deselectCircle (coll) {
-  if (coll.selected) coll.selected.update({selected: false})
-  coll.update({selected: null, diameter: coll.defaultDiameter})
+  coll.selected.send(null)
+  coll.diameter.send(coll.defaultDiameter.value)
 }
 
 function toggleSelection (id, coll) {
-  if (coll.selected && coll.selected.id === id) {
+  if (coll.selected.value && coll.selected.value.id === id) {
     deselectCircle(coll)
   } else {
-    const circ = coll.circles.find(c => c.id === id)
+    const circ = coll.circles.value.find(c => c.id === id)
     selectCircle(circ, coll)
   }
 }
 
 function createCircle ([x, y], coll) {
-  const circle = Circle(x, y, coll.diameter / 2)
+  const circle = Circle(x, y, coll.diameter.value / 2)
   // push the circle !
   const forward = () => {
-    coll.circles.push(circle)
+    coll.circles.value.push(circle)
     selectCircle(circle, coll)
-    coll.update({circles: coll.circles})
+    coll.circles.send(coll.circles.value)
   }
   // pop the circle on undo
   const backward = () => {
-    coll.circles.pop()
-    coll.update({circles: coll.circles})
+    coll.circles.value.pop()
+    coll.circles.send(coll.circles.value)
     deselectCircle(coll)
   }
   history.applyAction([forward, backward], coll.history)
@@ -72,21 +73,21 @@ function createOrSelect (event, coll) {
 
 // Set the diameter for an existing circle
 function setDiameter (event, coll) {
-  const oldDiam = coll.diameter
+  const oldDiam = coll.diameter.value
   const newDiam = Number(event.currentTarget.value)
-  const circle = coll.selected
+  const circle = coll.selected.value
   if (circle) {
     const forward = () => {
-      coll.update({diameter: newDiam})
-      circle.update({radius: newDiam / 2})
+      coll.diameter.send(newDiam)
+      circle.radius.send(newDiam / 2)
     }
     const backward = () => {
-      coll.update({diameter: oldDiam})
-      circle.update({radius: oldDiam / 2})
+      coll.diameter.send(oldDiam)
+      circle.radius.send(oldDiam / 2)
     }
     history.applyAction([forward, backward], coll.history)
   } else {
-    coll.update({diameter: newDiam})
+    coll.diameter.send(newDiam)
   }
 }
 
@@ -96,18 +97,17 @@ function view (coll) {
   const circles = dom.childSync({
     view: circleView,
     container: g,
-    model: coll,
-    key: 'circles'
+    channel: coll.circles
   })
   const svg = html`<svg onclick=${ev => createOrSelect(ev, coll)}> ${circles} </svg>`
 
   // inputs
-  const slider = html`<input type='range' min=10 max=200 value=${coll.diameter} onchange=${ev => setDiameter(ev, coll)}>`
-  coll.onUpdate('diameter', d => { slider.value = d })
+  const slider = html`<input type='range' min=10 max=200 value=${coll.diameter.value} onchange=${ev => setDiameter(ev, coll)}>`
+  coll.diameter.listen(d => { slider.value = d })
   const undoBtn = html`<button onclick=${() => history.undo(coll.history)}> Undo </button>`
   const redoBtn = html`<button onclick=${() => history.redo(coll.history)}> Redo </button>`
-  coll.history.onUpdate('undoStack', s => { undoBtn.disabled = !s.length })
-  coll.history.onUpdate('redoStack', s => { redoBtn.disabled = !s.length })
+  coll.history.undoStack.listen(s => { undoBtn.disabled = !s.length })
+  coll.history.redoStack.listen(s => { redoBtn.disabled = !s.length })
 
   return html`
     <div style='text-align: center'>
@@ -139,13 +139,11 @@ function view (coll) {
 }
 
 const circleView = circle => {
-  const circElm = html`<circle cx=${circle.x} cy=${circle.y} r=${circle.radius} data-id=${circle.id}>`
-  circle.onUpdate('selected', selected => {
+  const circElm = html`<circle cx=${circle.x} cy=${circle.y} r=${circle.radius.value} data-id=${circle.id}>`
+  circle.selected.listen(selected => {
     circElm.setAttribute('fill', selected ? '#888' : 'white')
   })
-  circle.onUpdate('radius', r => {
-    circElm.setAttribute('r', r)
-  })
+  circle.radius.listen(r => { circElm.setAttribute('r', r) })
   return circElm
 }
 

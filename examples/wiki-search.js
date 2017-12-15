@@ -1,5 +1,5 @@
 const html = require('bel')
-const model = require('../model')
+const channel = require('../channel')
 const statechart = require('../statechart')
 const dom = require('../dom')
 
@@ -14,10 +14,10 @@ const searchState = statechart({
 })
 
 const WikiSearch = () => {
-  return model({
-    results: [],
-    state: searchState
-  })
+  return {
+    results: channel([]),
+    state: channel(searchState)
+  }
 }
 
 const urlStr = 'https://en.wikipedia.org/w/api.php?action=query&format=json&gsrlimit=20&generator=search&origin=*&gsrsearch='
@@ -25,12 +25,13 @@ const urlStr = 'https://en.wikipedia.org/w/api.php?action=query&format=json&gsrl
 const performSearch = model => event => {
   const searchStr = event.currentTarget.value
   if (!searchStr.length) return
-  model.update({state: model.state.event('SEARCH')})
+  model.state.send(model.state.value.event('SEARCH'))
   window.fetch(urlStr + searchStr, {mode: 'cors'})
     .then(res => res.json())
     .then(data => {
       if (!data.query) {
-        model.update({state: model.state.event('NO_RESULTS'), results: []})
+        model.state.send(model.state.value.event('NO_RESULTS'))
+        model.results.send([])
       } else {
         // Assign id properties to each result object
         // convert an object where the keys are ids
@@ -41,10 +42,8 @@ const performSearch = model => event => {
           page.id = page.pageid
           arr.push(page)
         }
-        model.update({
-          state: model.state.event('GOT_RESULTS'),
-          results: arr
-        })
+        model.state.send(model.state.value.event('GOT_RESULTS'))
+        model.results.send(arr)
       }
     })
 }
@@ -57,8 +56,7 @@ const view = () => {
   const rows = dom.childSync({
     view: rowView,
     container: 'tbody',
-    model: wikiSearch,
-    key: 'results'
+    channel: wikiSearch.results
   })
   const table = html`
     <table>
@@ -66,7 +64,7 @@ const view = () => {
       ${rows}
     </table>
   `
-  wikiSearch.onUpdate('state', state => {
+  wikiSearch.state.listen(state => {
     loadingMsg.hidden = !state.loading
     noResults.hidden = !state.noResults
     table.hidden = !state.hasResults
@@ -83,10 +81,10 @@ const view = () => {
   `
 }
 
-const rowView = (row, elem) => {
+const rowView = (row, idx) => {
   return (html`
     <tr>
-      <td> ${elem.idx + 1}. </td>
+      <td> ${idx.value + 1}. </td>
       <td> 
         <a href='https://en.wikipedia.org/wiki/${row.title.replace(' ', '_')}' target='_blank'>
           ${row.title} 

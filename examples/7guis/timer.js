@@ -1,4 +1,4 @@
-const model = require('../../model')
+const channel = require('../../channel')
 const statechart = require('../../statechart')
 const html = require('bel')
 
@@ -14,23 +14,21 @@ const state = statechart({
 })
 
 function Timer () {
-  return model({
-    elapsedMs: 0,
-    duration: 10000,
+  return {
+    elapsedMs: channel(0),
+    duration: channel(10000),
     timeoutID: null,
-    state: state
-  })
+    state: channel(state)
+  }
 }
 
 // Toggle start or pause
 function toggle (timer) {
-  if (timer.state.running) {
+  if (timer.state.value.running) {
     // Pause
     clearTimeout(timer.timeoutID)
-    timer.update({
-      timeoutID: null,
-      state: timer.state.event('PAUSE')
-    })
+    timer.timeoutID = null
+    timer.state.send(timer.state.value.event('PAUSE'))
   } else {
     startTimer(timer)
   }
@@ -38,33 +36,29 @@ function toggle (timer) {
 
 function reset (timer) {
   clearTimeout(timer.timeoutID)
-  timer.update({
-    timeoutID: null,
-    elapsedMs: 0,
-    state: timer.state.event('RESET')
-  })
+  timer.timeoutID = null
+  timer.elapsedMs.send(0)
+  timer.state.send(timer.state.value.event('RESET'))
 }
 
 function setDuration (ev, timer) {
-  timer.update({duration: ev.currentTarget.value * 1000})
+  timer.duration.send(ev.currentTarget.value * 1000)
 }
 
 const startTimer = (timer) => {
   // prevent timeouts from stacking when clicking reset
-  timer.update({ state: timer.state.event('START') })
+  timer.state.send(timer.state.value.event('START'))
   let target = Date.now()
   function tick () {
-    if (!timer.state.running) return
-    if (timer.elapsedMs >= timer.duration) {
-      return timer.update({ state: timer.state.event('DONE') })
+    if (!timer.state.value.running) return
+    if (timer.elapsedMs.value >= timer.duration.value) {
+      timer.state.send(timer.state.value.event('DONE'))
     }
     var now = Date.now()
     target += 100
     const timeoutID = setTimeout(tick, target - now)
-    timer.update({
-      elapsedMs: timer.elapsedMs + 100,
-      timeoutID: timeoutID
-    })
+    timer.elapsedMs.send(timer.elapsedMs.value + 100)
+    timer.timeoutID = timeoutID
   }
   tick()
 }
@@ -80,19 +74,19 @@ function view (timer) {
   const durationSpan = html`<span>10.0s</span>`
   const secondsWrapper = html`<p>${secondsSpan} / ${durationSpan}</p>`
 
-  timer.onUpdate('state', state => {
+  timer.state.listen(state => {
     startPauseBtn.textContent = state.paused || state.reset ? 'Start' : 'Pause'
     startPauseBtn.disabled = state.finished
     resetBtn.disabled = state.reset
   })
-  timer.onUpdate('elapsedMs', ms => {
+  timer.elapsedMs.listen(ms => {
     secondsSpan.textContent = (ms / 1000).toFixed(1) + 's'
-    const perc = Math.round(timer.elapsedMs * 100 / timer.duration)
+    const perc = Math.round(ms * 100 / timer.duration.value)
     if (perc <= 100) {
       progress.firstChild.style.width = perc + '%'
     }
   })
-  timer.onUpdate('duration', ms => {
+  timer.duration.listen(ms => {
     durationSpan.textContent = (ms / 1000).toFixed(1) + 's'
   })
 

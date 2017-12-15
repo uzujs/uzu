@@ -1,4 +1,4 @@
-const model = require('../model')
+const channel = require('../channel')
 const Statechart = require('../statechart')
 const dom = require('../dom')
 const html = require('bel')
@@ -16,20 +16,20 @@ const taskState = Statechart({
 
 var id = 0
 function Task (name) {
-  return model({name, id: id++, state: taskState})
+  return {name, id: id++, state: channel(taskState)}
 }
 
 function List () {
-  return model({tasks: [], remaining: 0, filter: 'all'})
+  return {tasks: channel([]), remaining: channel(0), filter: channel('all')}
 }
 
 function toggleComplete (task, list) {
-  if (task.state.completed) {
-    task.update({state: task.state.event('PEND')})
-    list.update({remaining: list.remaining + 1})
+  if (task.state.value.completed) {
+    task.state.send(task.state.value.event('PEND'))
+    list.remaining.send(list.remaining.value + 1)
   } else {
-    task.update({state: task.state.event('COMPLETE')})
-    list.update({remaining: list.remaining - 1})
+    task.state.send(task.state.value.event('COMPLETE'))
+    list.remaining.send(list.remaining.value - 1)
   }
 }
 
@@ -39,38 +39,35 @@ const addNew = list => ev => {
   const name = ev.currentTarget.querySelector('input').value
   if (!name || !name.length) return
   ev.currentTarget.reset()
-  list.update({
-    tasks: list.tasks.concat([Task(name)]),
-    remaining: list.remaining + 1
-  })
+  list.tasks.send(list.tasks.value.concat([Task(name)]))
+  list.remaining.send(list.remaining.value + 1)
 }
 
 function removeTask (task, list) {
-  const tasks = list.tasks.filter(t => t.id !== task.id)
+  const tasks = list.tasks.value.filter(t => t.id !== task.id)
   // Recalculate total remaining
   // true -> 1, false -> 0
-  const remaining = tasks.reduce((sum, t) => sum + Number(!t.state.completed), 0)
-  list.update({tasks, remaining})
+  const remaining = tasks.reduce((sum, t) => sum + Number(!t.state.value.completed), 0)
+  list.tasks.send(tasks)
+  list.remaining.send(remaining)
 }
 
 function showAll (list) {
-  list.update({filter: 'all'})
-  list.tasks.forEach(t => {
-    t.update({state: t.state.event('SHOW')})
-  })
+  list.filter.send('all')
+  list.tasks.value.forEach(t => { t.state.send(t.state.value.event('SHOW')) })
 }
 
 function showActive (list) {
-  list.update({filter: 'active'})
-  list.tasks.forEach(t => {
-    t.update({state: t.state.event(t.state.completed ? 'HIDE' : 'SHOW')})
+  list.filter.send('active')
+  list.tasks.value.forEach(t => {
+    t.state.send(t.state.value.event(t.state.value.completed ? 'HIDE' : 'SHOW'))
   })
 }
 
 function showCompleted (list) {
-  list.update({filter: 'completed'})
-  list.tasks.forEach(t => {
-    t.update({state: t.state.event(t.state.completed ? 'SHOW' : 'HIDE')})
+  list.filter.send('completed')
+  list.tasks.value.forEach(t => {
+    t.state.send(t.state.value.event(t.state.value.completed ? 'SHOW' : 'HIDE'))
   })
 }
 
@@ -81,9 +78,8 @@ function view (list) {
     </form>
   `
   const tasks = dom.childSync({
-    view: taskView(list),
-    model: list,
-    key: 'tasks'
+    channel: list.tasks,
+    view: taskView(list)
   })
   return html`
     <div>
@@ -100,7 +96,7 @@ function view (list) {
 const remainingView = list => {
   const span = document.createElement('span')
   const remaining = html`<p> ${span} tasks remaining </p>`
-  list.onUpdate('remaining', remaining => {
+  list.remaining.listen(remaining => {
     span.textContent = remaining
     remaining.hidden = remaining === 0
   })
@@ -117,7 +113,7 @@ const filters = list => {
   const filterCompletedBtn = html`
     <button onclick=${() => showCompleted(list)}> Completed </button>
   `
-  list.onUpdate('filter', f => {
+  list.filter.listen(f => {
     filterAllBtn.disabled = f === 'all'
     filterActiveBtn.disabled = f === 'active'
     filterCompletedBtn.disabled = f === 'completed'
@@ -141,11 +137,10 @@ const taskView = list => task => {
       remove
     </button>
   `
-  const name = document.createElement('span')
-  task.onUpdate('name', n => { name.textContent = n })
+  const name = html`<span> ${task.name} </span>`
 
   const p = html` <p> ${checkbox} ${name} ${removeBtn} </p> `
-  task.onUpdate('state', state => {
+  task.state.listen(state => {
     p.hidden = state.hidden
     name.style.textDecoration = state.completed ? 'line-through' : 'none'
   })

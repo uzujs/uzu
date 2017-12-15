@@ -1,4 +1,4 @@
-var model = require('../model')
+var channel = require('../channel')
 var dom = {}
 module.exports = dom
 
@@ -11,8 +11,7 @@ dom.childSync = function childSync (options) {
   }
   var container = options.container
   var inserted = {} // track already-inserted dom nodes based on object id
-  if (!('key' in options)) throw new Error('Pass a .key into childSync options')
-  options.model.onUpdate(options.key, update)
+  options.channel.listen(update)
 
   // Given a new set of data, update the child dom elements
   function update (arr) {
@@ -42,17 +41,17 @@ dom.childSync = function childSync (options) {
       id = arr[idx].id
       elem = inserted[id]
       if (!elem) {
-        var elemModel = model({idx: idx})
+        var idxChan = channel(idx)
         var node
-        var unlisten = model.listen(function () {
-          node = options.view(arr[idx], elemModel)
+        var unlisten = channel.createUnlistener(function () {
+          node = options.view(arr[idx], idxChan)
           node.dataset['uzu_id'] = id
         })
-        elem = {model: elemModel, node: node, unlisten: unlisten}
+        elem = {idxChan: idxChan, node: node, unlisten: unlisten}
         inserted[id] = elem
       } else {
-        if (idx !== elem.model.idx) {
-          elem.model.update({idx: idx})
+        if (idx !== elem.idxChan.value) {
+          elem.idxChan.send(idx)
         }
       }
 
@@ -77,11 +76,11 @@ dom.route = function route (options) {
   }
   var prevPage
   var unlisten
-  options.model.onUpdate(options.key, function (page) {
+  options.channel.listen(function (page) {
     if (page === prevPage) return
     var child
     if (unlisten) unlisten()
-    unlisten = model.listen(function () {
+    unlisten = channel.createUnlistener(function () {
       child = options.routes[page]()
     })
     while (options.container.firstChild) {

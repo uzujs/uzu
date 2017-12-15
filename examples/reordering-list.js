@@ -1,25 +1,24 @@
 const dom = require('../dom')
-const model = require('../model')
+const channel = require('../channel')
 const html = require('bel')
 
-const Elem = (id) => model({id, newIdx: id})
+const Elem = (id) => ({id, newIdx: id})
 
-const List = (elems) => model({elems})
+const List = (elems) => ({elems: channel(elems)})
 
 // Move every element in the list to their new indexes
 function reorderList (list) {
   const newArr = []
-  list.elems.forEach(elem => {
+  list.elems.value.forEach(elem => {
     if (elem.newIdx !== -1) newArr[elem.newIdx] = elem
   })
-  list.update({elems: newArr})
+  list.elems.send(newArr)
 }
 
 function view () {
   const list = List([Elem(0), Elem(1), Elem(2), Elem(3)])
   const tbody = dom.childSync({
-    model: list,
-    key: 'elems',
+    channel: list.elems,
     view: elemView,
     container: 'tbody'
   })
@@ -52,12 +51,11 @@ function view () {
 
 const elemView = (elem, idx) => {
   const setNewIdx = (ev) => {
-    const newIdx = Number(ev.currentTarget.value)
-    elem.update({newIdx})
+    elem.newIdx = Number(ev.currentTarget.value)
   }
 
-  const input = html`<input type='number' min=-1 value=${idx.idx} style='width: 2rem;' oninput=${setNewIdx}>`
-  idx.onUpdate('idx', idx => { input.value = idx })
+  const input = html`<input type='number' min=-1 value=${idx.value} style='width: 2rem;' oninput=${setNewIdx}>`
+  idx.listen(idx => { input.value = idx })
   return html`
     <tr>
       <td>${elem.id}</td>
