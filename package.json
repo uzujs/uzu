@@ -1,6 +1,6 @@
 {
   "name": "uzu",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Simple UI components",
   "main": "index.js",
   "scripts": {
