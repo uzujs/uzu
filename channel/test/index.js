@@ -32,3 +32,21 @@ test('we can catch any and all listeners bound to multiple model', t => {
   t.strictEqual(s2.y.listeners.length, 0)
   t.end()
 })
+
+test('aggregate a channel of arrays of objects of channels', t => {
+  const arr = channel([])
+  const aggregate = channel.aggregate(arr)
+  const chan1 = {name: channel('a')}
+  const chan2 = {name: channel('x')}
+  arr.send(arr.value.concat([chan1]))
+  var results = []
+  aggregate.name.listen(function ([name, prev]) {
+    results.push(name)
+    results.push(prev)
+  })
+  chan1.name.send('b')
+  arr.send(arr.value.concat([chan2]))
+  chan2.name.send('y')
+  t.deepEqual(results, [ 'a', 'a', 'b', 'a', 'x', 'x', 'y', 'x' ])
+  t.end()
+})

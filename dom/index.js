@@ -91,3 +91,11 @@ dom.route = function route (options) {
   })
   return options.container
 }
+
+dom.text = function text (channel) {
+  const span = document.createElement('span')
+  channel.listen(function (value) {
+    span.textContent = value
+  })
+  return span
+}

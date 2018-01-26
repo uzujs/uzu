@@ -6,9 +6,9 @@ function Timer () {
   const state = statechart({
     states: ['running', 'paused', 'reset', 'finished'],
     events: {
-      PAUSE: ['running', 'paused'],
+      // Start or stop
+      TOGGLE: [['running', 'paused'], ['reset', 'running'], ['paused', 'running']],
       RESET: [['running', 'reset'], ['finished', 'reset'], ['paused', 'reset']],
-      START: [['paused', 'running'], ['reset', 'running']],
       DONE: ['running', 'finished']
     },
     initial: {reset: true}
@@ -24,11 +24,11 @@ function Timer () {
 
 // Toggle start or pause
 function toggle (timer) {
+  timer.state.event('TOGGLE')
   if (timer.state.value.running) {
     // Pause
     clearTimeout(timer.timeoutID)
     timer.timeoutID = null
-    timer.state.event('PAUSE')
   } else {
     startTimer(timer)
   }
@@ -47,7 +47,6 @@ function setDuration (ev, timer) {
 
 const startTimer = (timer) => {
   // prevent timeouts from stacking when clicking reset
-  timer.state.event('START')
   let target = Date.now()
   function tick () {
     if (!timer.state.value.running) return
