@@ -1,11 +1,15 @@
 # uzu/statechart
 
-Statecharts are useful for managing complicated asynchronous UI. This is a small implementation of these statecharts. 
+Statecharts are useful for managing complicated asynchronous UI in a declarative way.
 
-The `statechart` function returns a state, which uses [channels](/channel). The API is the same, with the added method `state.event(eventName)`
+Statecharts use the **[harel](https://github.com/jayrbolton/harel) module** and have the same API that can be found there. The main exception is that we wrap the chart in a [channel](../channel) for convenience.
+
+The value returned by `statechart` is a channel with one extra method: `event(eventName)`. Calling this triggers the channel to update with a new set of states based on the given event.
 
 ```js
-const state = statechart({
+const statechart = require('uzu/statechart')
+
+const chart = statechart({
   states: ['loading', 'hasResults', 'noResults'],
   events: {
     SEARCH: [['hasResults', 'loading'], ['noResults', 'loading']],
@@ -15,38 +19,27 @@ const state = statechart({
   initial: {noResults: true}
 })
 
-state.value.noResults // -> true
-state.value.loading // -> undefined
-state.value.hasResults // -> undefined
+chart.value.noResults // -> true
+chart.value.loading // -> undefined
+chart.value.hasResults // -> undefined
 
-state.event('SEARCH')
-state.value.enoResults // -> undefined
-state.value.eloading // -> true
-state.value.ehasResults // -> undefined
+chart.event('SEARCH')
+chart.value.noResults // -> undefined
+chart.value.loading // -> true
+chart.value.hasResults // -> undefined
 
-state.event('GOT_RESULTS')
-state.value.noResults // -> undefined
-state.value.loading // -> undefined
-state.value.hasResults // -> true
+chart.event('GOT_RESULTS')
+chart.value.noResults // -> undefined
+chart.value.loading // -> undefined
+chart.value.hasResults // -> true
 
-state.event('SEARCH')
-state.value.noResults // -> undefined
-state.value.loading // -> true
-state.value.hasResults // -> undefined
+chart.event('SEARCH')
+chart.value.noResults // -> undefined
+chart.value.loading // -> true
+chart.value.hasResults // -> undefined
 
-state.event('NO_RESULTS')
-state.value.noResults // -> true
-state.value.loading // -> undefined
-state.value.hasResults // -> undefined
+chart.event('NO_RESULTS')
+chart.value.noResults // -> true
+chart.value.loading // -> undefined
+chart.value.hasResults // -> undefined
 ```
-
-You can run multiple, parallel states simply by setting multiple keys to true in the `initial` object.
-
-## Nested states
-
-Coming soon.
-
-## Transition guards
-
-Coming soon.
-

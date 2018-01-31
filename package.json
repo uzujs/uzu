@@ -16,5 +16,7 @@
     "tape": "^4.8.0",
     "tape-run": "^3.0.0"
   },
-  "dependencies": {}
+  "dependencies": {
+    "harel": "0.0.1"
+  }
 }
