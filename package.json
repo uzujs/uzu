@@ -1,0 +1,31 @@
+{
+  "name": "uzu",
+  "version": "0.0.1",
+  "description": "Fractal UI components",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "common-readme": "^1.1.0",
+    "dependency-check": "^3.1.0",
+    "standard": "^11.0.1",
+    "tape": "^4.9.0"
+  },
+  "bugs": {
+    "url": "https://github.com/jayrbolton/uzu/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jayrbolton/uzu.git"
+  },
+  "scripts": {
+    "test": "dependency-check package.json && standard && node test/",
+    "preversion": "npm run test",
+    "postversion": "git push && git push --tags"
+  },
+  "keywords": [],
+  "author": "jayrbolton <jayrbolton@protonmail.com>",
+  "license": "MIT"
+}
