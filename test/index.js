@@ -1,3 +1,5 @@
-require('../channel/test')
-require('../dom/test')
-require('../statechart/test')
+const test = require('tape')
+
+test('hello world', t => {
+  t.end()
+})
