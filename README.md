@@ -345,10 +345,10 @@ In the above example, `globalState` serves as a kind of central bus that can be 
 
 ### Testing components
 
-It's simple to test components. Simply initialize them, fire some events, and test for state and DOM changes.
+It's simple to test components. Initialize them, fire some events, and test for state and DOM changes.
 
 ```js
-const test = require('tape)
+const test = require('tape')
 const Comp = require('myComponent')
 
 test('example', t => {
