@@ -1,111 +1,102 @@
-const dom = require('../dom')
-const html = require('bel')
-const channel = require('../channel')
+const {h, component} = require('../')
 
 var id = 0
-function Counter (initial) {
-  return {count: channel(initial), id: id++}
-}
-
-function increment (counter) {
-  counter.count.send(counter.count.value + 1)
-}
-
-function decrement (counter) {
-  counter.count.send(counter.count.value - 1)
-}
-
-function reset (counter) {
-  counter.count.send(0)
-}
-
-function CounterList (initial = []) {
-  const counters = channel(initial.map(Counter))
-  const total = channel(getTotal(counters.value))
-  const aggregate = channel.aggregate(counters)
-  aggregate.count.listen(function ([current, prev]) {
-    total.send(total.value + (current - prev))
+function Counter (initial=0) {
+  return component({
+    state: {count: initial, id: id++},
+    on: {
+      ADD: function (val, state, emit) {
+        emit('UPDATE', {count: state.count + val})
+      },
+      RESET: function (_, state, emit) {
+        emit('UPDATE', {count: 0})
+      }
+    },
+    view: function (state, emit) {
+      return h('div', {
+        key: state.id
+      }, [
+        h('p', ['Bean bag #', state.id]),
+        h('p', ['Total beans: ', String(state.count)]),
+        h('button', {on: {click: () => emit('ADD', 1)}}, 'add a bean'),
+        h('button', {on: {click: () => emit('ADD', -1)}, props: {disabled: state.count === 0}}, 'toss a bean'),
+        h('button', {on: {click: () => emit('RESET')}}, 'throw all beans in the garbage')
+      ])
+    }
   })
-  return {counters, total}
 }
 
-function append (list) {
-  list.counters.send(list.counters.value.concat([Counter(0)]))
+function CounterList (initial=[]) {
+  const totalCount = getTotal(initial)
+  return component({
+    state: {counters: initial || [], totalCount},
+    on: {
+      RESET_ALL: function (_, state, emit) {
+        state.counters.forEach(function (counter) {
+          counter.emit('RESET')
+        })
+        emit('UPDATE', {totalCount: 0})
+      },
+      APPEND: function (_, state, emit) {
+        const newCounter = Counter(1)
+        newCounter.on('ADD', function (val) {
+          emit('UPDATE', { totalCount: state.totalCount + val })
+        })
+        newCounter.on('RESET', function (val) {
+          emit('UPDATE', { totalCount: getTotal(state.counters)})
+        })
+        emit('UPDATE', {
+          counters: state.counters.concat([newCounter]),
+          totalCount: state.totalCount + 1
+        })
+      },
+      REMOVE: function (id, state, emit) {
+        const counters = state.counters.filter(c => c.state.id !== id)
+        emit('UPDATE', {
+          counters: counters,
+          totalCount: getTotal(counters)
+        })
+      }
+    },
+    view: listView
+  })
 }
 
 function getTotal (counters) {
-  return counters.reduce(function (sum, counter) {
-    return sum + counter.count.value
-  }, 0)
+  // Get the sum of all counters' count
+  return counters.reduce((sum, c) => c.state.count + sum, 0)
 }
 
-function remove (id, list) {
-  list.counters.send(list.counters.value.filter(c => c.id !== id))
-  list.total.send(getTotal(list.counters.value))
+function listView (state, emit) {
+  return h('div', [
+    h('p', ['Bean bag simulator 2000']),
+    h('p', ['Total beans: ', state.totalCount]),
+    h('div', [
+      h('button', {
+        on: {click: () => emit('RESET_ALL')},
+        props: {disabled: state.totalCount === 0}
+      }, 'Reset all'),
+      h('button', {
+        on: {click: () => emit('APPEND')}
+      }, 'Add another bean bag'),
+      h('div', state.counters.map(counter => counterViewWithRemove(state, emit, counter)))
+    ])
+  ])
 }
 
-function resetAll (list) {
-  list.counters.value.forEach(function (counter) {
-    counter.count.send(0)
-  })
+function counterViewWithRemove (state, emit, counter) {
+  const removeBtn = h('button', {
+    on: {click: () => emit('REMOVE', counter.state.id)}
+  }, ['Remove bag'])
+  return h('div', {
+    key: counter.state.id
+  }, [
+    h('hr'),
+    h('input', {props: {type: 'checkbox'}}),
+    counter.vnode,
+    removeBtn
+  ])
 }
 
-function listView (list) {
-  const appendBtn = html`<button onmousedown=${() => append(list)}> Add bean bag </button>`
-  const counterElems = dom.childSync({
-    channel: list.counters,
-    view: counterViewWithRemove(list)
-  })
-  const totalBeans = dom.text(list.total)
-  const resetBtn = html`<button onclick=${() => resetAll(list)}> Reset all </button>`
-  list.total.listen(function (total) {
-    resetBtn.disabled = total === 0
-  })
 
-  return html`
-    <div>
-      <p> Bags of beans let's go </p>
-      <p> Total beans ${totalBeans} </p>
-      <p> ${resetBtn} </p>
-      ${appendBtn}
-      ${counterElems}
-    </div>
-  `
-}
-
-const counterViewWithRemove = list => counter => {
-  const removeBtn = html`<button onmousedown=${() => remove(counter.id, list)}> Remove bag </button>`
-  return html`
-    <div>
-      <hr>
-      <input type='checkbox'>
-      ${counterView(counter)}
-      ${removeBtn}
-    </div>
-  `
-}
-
-function counterView (counter) {
-  const spanCount = dom.text(counter.count)
-  const countMsg = html`<p> Total beans: ${spanCount} </p>`
-
-  const incrBtn = html`<button onmousedown=${() => increment(counter)}> add a bean </button`
-  const decrBtn = html`<button onmousedown=${() => decrement(counter)}> toss a bean </button`
-  const resetBtn = html`<button onmousedown=${() => reset(counter)}> throw all beans in the garbage </button`
-
-  counter.count.listen(count => {
-    decrBtn.disabled = resetBtn.disabled = count === 0
-  })
-
-  return html`
-    <div>
-      <p> Bean bag #${counter.id} </p>
-      ${incrBtn}
-      ${decrBtn}
-      ${resetBtn}
-      ${countMsg}
-    </div>
-  `
-}
-
-document.body.appendChild(listView(CounterList([0, 1, 2])))
+document.body.appendChild(CounterList([]).node)

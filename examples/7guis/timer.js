@@ -1,114 +1,152 @@
-const channel = require('../../channel')
-const statechart = require('../../statechart')
-const html = require('bel')
+const {h, component} = require('../..')
+
+function transition (event, status) {
+  // A simple state machine for controlling the timer
+  // State transitions
+  const transitions = {
+    TOGGLE: {
+      running: 'paused',
+      reset: 'running',
+      paused: 'running',
+      'finished': 'running'
+    },
+    RESET: {
+      running: 'reset',
+      finished: 'reset',
+      paused: 'reset'
+    },
+    DONE: {
+      running: 'finished'
+    }
+  }
+  const newStatus = transitions[event][status]
+  if (!newStatus) throw new Error('Invalid transition ' + event + ' from ' + status)
+  return newStatus
+}
 
 function Timer () {
-  const state = statechart({
-    states: ['running', 'paused', 'reset', 'finished'],
-    events: {
-      // Start or stop
-      TOGGLE: [['running', 'paused'], ['reset', 'running'], ['paused', 'running']],
-      RESET: [['running', 'reset'], ['finished', 'reset'], ['paused', 'reset']],
-      DONE: ['running', 'finished']
+  return component({
+    state: {elapsedMs: 0, duration: 10000, timeoutID: null, status: 'reset'},
+    on: {
+      TOGGLE: function (_, state, emit) {
+        if (state.status === 'running') {
+          console.log('status', state.status)
+          clearTimeout(state.timeoutID)
+          state.timeoutID = null
+          state.status = transition('TOGGLE', state.status)
+        } else {
+          console.log('status', state.status)
+          state.status = transition('TOGGLE', state.status)
+          startTimer(state, emit)
+        }
+        emit('UPDATE', state)
+      },
+      SET_DURATION: function (ev, state, emit) {
+        // Set the duration in MS from an input event
+        emit('UPDATE', {duration: ev.currentTarget.value * 1000})
+      },
+      RESET: function (_, state, emit) {
+        // Reset the timer completely, clear everything out
+        clearTimeout(state.timeoutID)
+        state.timeoutID = null
+        state.elapsedMs = 0
+        state.status = transition('RESET', state.status)
+        emit('UPDATE', state)
+      },
+      DONE: function (_, state, emit) {
+        clearTimeout(state.timeoutID)
+        state.timeoutID = null
+        state.status = transition('DONE', state.status)
+        emit('UPDATE', state)
+      }
     },
-    initial: {reset: true}
+    view: view
   })
-
-  return {
-    elapsedMs: channel(0),
-    duration: channel(10000),
-    timeoutID: null,
-    state: state
-  }
 }
 
-// Toggle start or pause
-function toggle (timer) {
-  timer.state.event('TOGGLE')
-  if (timer.state.value.running) {
-    // Pause
-    clearTimeout(timer.timeoutID)
-    timer.timeoutID = null
-  } else {
-    startTimer(timer)
-  }
-}
-
-function reset (timer) {
-  clearTimeout(timer.timeoutID)
-  timer.timeoutID = null
-  timer.elapsedMs.send(0)
-  timer.state.event('RESET')
-}
-
-function setDuration (ev, timer) {
-  timer.duration.send(ev.currentTarget.value * 1000)
-}
-
-const startTimer = (timer) => {
+const startTimer = (state, emit) => {
   // prevent timeouts from stacking when clicking reset
   let target = Date.now()
   function tick () {
-    if (!timer.state.value.running) return
-    if (timer.elapsedMs.value >= timer.duration.value) {
-      timer.state.event('DONE')
+    if (state.elapsedMs >= state.duration) {
+      emit('DONE')
+      return
+    } 
+    if (state.status === 'running') {
+      var now = Date.now()
+      target += 100
+      const timeoutID = setTimeout(tick, target - now)
+      emit('UPDATE', {timeoutID: timeoutID, elapsedMs: state.elapsedMs + 100})
     }
-    var now = Date.now()
-    target += 100
-    const timeoutID = setTimeout(tick, target - now)
-    timer.elapsedMs.send(timer.elapsedMs.value + 100)
-    timer.timeoutID = timeoutID
   }
   tick()
 }
 
-function view (timer) {
-  // inputs
-  const slider = html`<input type='range' min=1 max=100 step="0.1" oninput=${ev => setDuration(ev, timer)} value=10>`
-  const startPauseBtn = html`<button onclick=${() => toggle(timer)}> </button>`
-  const resetBtn = html`<button onclick=${() => reset(timer)}> Reset </button>`
-  // dynamic outputs
-  const progress = html`<div class='progress'><div class='progress-bar'></div></div>`
-  const secondsSpan = html`<span>0.0s</span>`
-  const durationSpan = html`<span>10.0s</span>`
-  const secondsWrapper = html`<p>${secondsSpan} / ${durationSpan}</p>`
+function view (state, emit) {
+  const toggleBtnText = {
+    running: 'Pause',
+    paused: 'Start',
+    reset: 'Start',
+    finished: 'Start'
+  }
 
-  timer.state.listen(state => {
-    startPauseBtn.textContent = state.paused || state.reset ? 'Start' : 'Pause'
-    startPauseBtn.disabled = state.finished
-    resetBtn.disabled = state.reset
-  })
-  timer.elapsedMs.listen(ms => {
-    secondsSpan.textContent = (ms / 1000).toFixed(1) + 's'
-    const perc = Math.round(ms * 100 / timer.duration.value)
-    if (perc <= 100) {
-      progress.firstChild.style.width = perc + '%'
-    }
-  })
-  timer.duration.listen(ms => {
-    durationSpan.textContent = (ms / 1000).toFixed(1) + 's'
-  })
+  // Progress bar percentage width from elapsedMs and duration
+  let barWidth = Math.round(state.elapsedMs * 100 / state.duration)
+  barWidth = (barWidth <= 100) ? barWidth + '%' : '100%'
+  console.log('width', barWidth)
 
-  return html`
-    <div>
-      <style>
-        .progress {
-          width: 100px;
-          height: 20px;
-          background: grey;
-        }
-        .progress-bar {
-          height: 20px;
-          background: blue;
-        }
-      </style>
-      <div> Elapsed time: ${progress} </div>
-      <div> ${secondsWrapper} </div>
-      <div> Duration: ${slider} </div>
-      <div> ${startPauseBtn} </div>
-      <div> ${resetBtn} </div>
-    </div>
-  `
+  return h('div', [
+    h('div', [
+      'Elapsed time: ',
+      h('div.progress', {
+        style: {width: '100px', height: '20px', background: 'grey'}
+      }, [
+        h('div.progress-bar', {
+          style: {
+            height: '20px',
+            backround: 'blue',
+            width: barWidth
+          }
+        })
+      ])
+    ]),
+    // Elapsed MS / Duration text
+    h('div', [
+      h('p', [
+        (state.elapsedMs / 1000).toFixed(1) + 's',
+        ' / ',
+        (state.duration / 1000).toFixed(1) + 's'
+      ])
+    ]),
+    // Duration input
+    h('div', [
+      'Duration: ',
+      h('input', {
+        props: {
+          type: 'range',
+          min: 1,
+          max: 100,
+          step: '0.1',
+          value: 10
+        },
+        on: { input: ev => emit('SET_DURATION', ev) }
+      })
+    ]),
+    // Start/Pause button
+    h('div', [
+      h('button', {
+        on: {click: () => emit('TOGGLE')},
+        props: {disabled: state.elapsedMs >= state.duration}
+      }, [
+        toggleBtnText[state.status]
+      ])
+    ]),
+    // Reset button
+    h('button', {
+      on: { click: () => emit('RESET') },
+      props: { disabled: state.status === 'reset' }
+    }, [ 'Reset' ])
+  ])
 }
 
-document.body.appendChild(view(Timer()))
+document.body.appendChild(Timer().node)
