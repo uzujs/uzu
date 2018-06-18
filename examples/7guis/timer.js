@@ -43,7 +43,8 @@ function Timer () {
       },
       SET_DURATION: function (ev, state, emit) {
         // Set the duration in MS from an input event
-        emit('UPDATE', {duration: ev.currentTarget.value * 1000})
+        state.duration = ev.currentTarget.value * 1000
+        emit('UPDATE', state)
       },
       RESET: function (_, state, emit) {
         // Reset the timer completely, clear everything out
@@ -71,12 +72,13 @@ const startTimer = (state, emit) => {
     if (state.elapsedMs >= state.duration) {
       emit('DONE')
       return
-    } 
+    }
     if (state.status === 'running') {
       var now = Date.now()
       target += 100
-      const timeoutID = setTimeout(tick, target - now)
-      emit('UPDATE', {timeoutID: timeoutID, elapsedMs: state.elapsedMs + 100})
+      state.timeoutID = setTimeout(tick, target - now)
+      state.elapsedMs += 100
+      emit('UPDATE', state)
     }
   }
   tick()
@@ -93,7 +95,6 @@ function view (state, emit) {
   // Progress bar percentage width from elapsedMs and duration
   let barWidth = Math.round(state.elapsedMs * 100 / state.duration)
   barWidth = (barWidth <= 100) ? barWidth + '%' : '100%'
-  console.log('width', barWidth)
 
   return h('div', [
     h('div', [
@@ -104,7 +105,7 @@ function view (state, emit) {
         h('div.progress-bar', {
           style: {
             height: '20px',
-            backround: 'blue',
+            background: 'blue',
             width: barWidth
           }
         })

@@ -18,21 +18,25 @@ function component (options, children) {
   if (!options.state) options.state = {}
   if (!options.view) throw new TypeError('You must provide a .view function')
 
-  // Return result containing {vnode, node, state, on, emit, view}
+  if (typeof options.state !== 'object') {
+    throw new TypeError('The .state option for a component must be an object')
+  }
 
-  var state = options.state
-  var emitter = mitt()
-  var instance = {
+  const state = options.state
+  const emitter = mitt()
+  const instance = {
     state: state,
     on: emitter.on.bind(emitter),
     emit: emitter.emit.bind(emitter)
   }
 
-  options.on.UPDATE = function update (toMerge) {
-    if (toMerge) {
-      for (var mergeKey in toMerge) {
-        state[mergeKey] = toMerge[mergeKey]
-      }
+  if (options.on.UPDATE) {
+    throw new Error('You cannot overwrite the UPDATE event: it is a reserved event name.')
+  }
+
+  options.on.UPDATE = function update (newState) {
+    if (newState !== undefined) {
+      instance.state = newState
     }
     return render(instance, options.view)
   }
@@ -42,15 +46,12 @@ function component (options, children) {
       if (options.debug) {
         console.log('event', eventName)
       }
-      options.on[eventName](data, state, instance.emit)
-      if (options.debug) {
-        console.log('  new state:', state)
-      }
+      options.on[eventName](data, instance.state, instance.emit)
     })
   }
 
   var node = document.createElement('div')
-  instance.vnode = patch(node, options.view(state, instance.emit))
+  instance.vnode = patch(node, options.view(instance.state, instance.emit))
   instance.node = instance.vnode.elm
 
   return instance
@@ -69,4 +70,16 @@ function render (component, view) {
   return component
 }
 
-module.exports = {h, component}
+function debug (component, name = '') {
+  // Print a log of debug messages for every event for a component
+  component.on('*', function (eventName, data) {
+    if (eventName === 'UPDATE') {
+      console.log(name + ' state:', component.state)
+    } else {
+      console.log(name + ' event:', eventName, name)
+    }
+  })
+  return component
+}
+
+module.exports = {h, component, debug}

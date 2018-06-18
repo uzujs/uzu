@@ -1,15 +1,17 @@
-const {h, component} = require('../')
+const {h, component, debug} = require('../')
 
 var id = 0
-function Counter (initial=0) {
+function Counter (initial = 0) {
   return component({
     state: {count: initial, id: id++},
     on: {
       ADD: function (val, state, emit) {
-        emit('UPDATE', {count: state.count + val})
+        state.count += val
+        emit('UPDATE', state)
       },
       RESET: function (_, state, emit) {
-        emit('UPDATE', {count: 0})
+        state.count = 0
+        emit('UPDATE', state)
       }
     },
     view: function (state, emit) {
@@ -26,7 +28,7 @@ function Counter (initial=0) {
   })
 }
 
-function CounterList (initial=[]) {
+function CounterList (initial = []) {
   const totalCount = getTotal(initial)
   return component({
     state: {counters: initial || [], totalCount},
@@ -35,27 +37,28 @@ function CounterList (initial=[]) {
         state.counters.forEach(function (counter) {
           counter.emit('RESET')
         })
-        emit('UPDATE', {totalCount: 0})
+        state.totalCount = 0
+        emit('UPDATE', state)
       },
       APPEND: function (_, state, emit) {
         const newCounter = Counter(1)
+        debug(newCounter, 'counter ' + newCounter.state.id)
         newCounter.on('ADD', function (val) {
-          emit('UPDATE', { totalCount: state.totalCount + val })
+          state.totalCount += val
+          emit('UPDATE', state)
         })
         newCounter.on('RESET', function (val) {
-          emit('UPDATE', { totalCount: getTotal(state.counters)})
+          state.totalCount = getTotal(state.counters)
+          emit('UPDATE', state)
         })
-        emit('UPDATE', {
-          counters: state.counters.concat([newCounter]),
-          totalCount: state.totalCount + 1
-        })
+        state.counters.push(newCounter)
+        state.totalCount += 1
+        emit('UPDATE', state)
       },
       REMOVE: function (id, state, emit) {
-        const counters = state.counters.filter(c => c.state.id !== id)
-        emit('UPDATE', {
-          counters: counters,
-          totalCount: getTotal(counters)
-        })
+        state.counters = state.counters.filter(c => c.state.id !== id)
+        state.totalCount = getTotal(state.counters)
+        emit('UPDATE', state)
       }
     },
     view: listView
@@ -98,5 +101,7 @@ function counterViewWithRemove (state, emit, counter) {
   ])
 }
 
+const list = CounterList([])
+debug(list, 'list')
 
-document.body.appendChild(CounterList([]).node)
+document.body.appendChild(list.node)
