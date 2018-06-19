@@ -1,7 +1,7 @@
-var mitt = require('mitt')
+const mitt = require('mitt')
 
-var snabbdom = require('snabbdom')
-var patch = snabbdom.init([
+const snabbdom = require('snabbdom')
+const patch = snabbdom.init([
   require('snabbdom/modules/class').default,
   require('snabbdom/modules/props').default,
   require('snabbdom/modules/style').default,
@@ -9,33 +9,42 @@ var patch = snabbdom.init([
   require('snabbdom/modules/dataset').default
 ])
 
-var h = require('snabbdom/h').default
+const h = require('snabbdom/h').default
 
-function component (options, children) {
-  if (!options) options = {}
-  if (!children) children = []
-  if (!options.on) options.on = {}
-  if (!options.state) options.state = {}
-  if (!options.view) throw new TypeError('You must provide a .view function')
+function component (options) {
+  if (!options || !options.view) throw new TypeError('You must pass an object with a .view function')
+  if (!('on' in options)) options.on = {}
 
-  if (typeof options.state !== 'object') {
-    throw new TypeError('The .state option for a component must be an object')
+  if (typeof options.on !== 'object') {
+    throw new TypeError('options.on must be an object')
   }
 
   const state = options.state
-  const emitter = mitt()
+  const handlers = {}
+  const emitter = mitt(handlers)
   const instance = {
     state: state,
-    on: emitter.on.bind(emitter),
-    emit: emitter.emit.bind(emitter)
+    on: function (eventName, callback) {
+      if (eventName === 'UPDATE') {
+        errors.overwriteUpdateEvent()
+      }
+      emitter.on(eventName, callback)
+    },
+    emit: function (eventName, data) {
+      if (!(eventName in handlers)) {
+        throw new Error('Unknown event: ' + eventName + '. Events are: ' + Object.keys(handlers))
+      }
+      emitter.emit(eventName, data)
+    }
   }
 
   if (options.on.UPDATE) {
+    errors.overwriteUpdateEvent()
     throw new Error('You cannot overwrite the UPDATE event: it is a reserved event name.')
   }
 
   options.on.UPDATE = function update (newState) {
-    if (newState !== undefined) {
+    if (arguments.length) {
       instance.state = newState
     }
     return render(instance, options.view)
@@ -43,23 +52,32 @@ function component (options, children) {
 
   for (let eventName in options.on) {
     emitter.on(eventName, function (data) {
-      if (options.debug) {
-        console.log('event', eventName)
-      }
       options.on[eventName](data, instance.state, instance.emit)
     })
   }
 
-  var node = document.createElement('div')
-  instance.vnode = patch(node, options.view(instance.state, instance.emit))
+  const node = document.createElement('div')
+  const vnode = options.view(instance.state, instance.emit)
+  if (!vnode || typeof vnode !== 'object' || !vnode.sel) {
+    throw new TypeError('The view function must return a snabbdom vnode')
+  }
+  instance.vnode = patch(node, vnode)
   instance.node = instance.vnode.elm
 
   return instance
 }
 
+const errors = {
+  overwriteUpdateEvent: function () {
+    throw new Error('You cannot overwrite the UPDATE event: it is a reserved event name.')
+  }
+}
+
 function render (component, view) {
   // Re-render a component
-  var newVnode = patch(component.vnode, view(component.state, component.emit))
+  // In our case, we mutate the original vnode to have all the new properties
+  // This way, component.vnode is always up to date and references the same obj
+  const newVnode = patch(component.vnode, view(component.state, component.emit))
   component.vnode.data = newVnode.data
   component.vnode.elm = newVnode.elm
   component.vnode.children = newVnode.children
