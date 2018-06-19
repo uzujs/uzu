@@ -72,11 +72,12 @@ function render (component, view) {
 
 function debug (component, name = '') {
   // Print a log of debug messages for every event for a component
+  console.log(name + ' initial state:', component.state)
   component.on('*', function (eventName, data) {
     if (eventName === 'UPDATE') {
-      console.log(name + ' state:', component.state)
+      console.log(name + ' UPDATE:', component.state)
     } else {
-      console.log(name + ' event:', eventName, name)
+      console.log(name + ' ' + eventName)
     }
   })
   return component
