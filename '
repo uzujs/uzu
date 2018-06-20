@@ -1,0 +1,20 @@
+
+const counter = pipe(
+    event('click'),
+    scan((sum) => sum + 1, 0),
+    map(sum => setText(sum))
+  )
+
+const btn = h('button', 0)
+
+btn.click
+
+document.body.appendChild(btn)
+
+
+const prependItems = (ul, form) =>
+  pipe(
+    fromEvent(form, 'submit'),
+    map(getItem),
+    scan(append, [])
+  )

@@ -126,7 +126,10 @@ function view (state, emit) {
       display: {hide: !state.booked}
     }, [
       h('p', successMsg),
-      h('button', {on: {click: () => emit('UNBOOK')}}, 'Cancel booking')
+      h('button', {
+        on: {click: () => emit('UNBOOK')},
+        class: {hide: !state.booked}
+      }, 'Cancel booking')
     ])
   ])
 }
