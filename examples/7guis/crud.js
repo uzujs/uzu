@@ -6,28 +6,26 @@ function Person (lastName, firstName) {
     state: {lastName, firstName, id: id++, hidden: false, selected: false},
     on: {
       SEARCH: function (str, state, emit) {
-        state.hidden = !searchMatches(str, state)
+        state.hidden = !searchMatch(str, state)
         emit('UPDATE', state)
       }
     },
-    view: personView
+    view: function (state, emit) {
+      return h('div', {
+        on: {click: () => emit('SELECT')},
+        style: {cursor: 'pointer'},
+        class: {hidden: state.hidden, selected: state.selected}
+      }, [state.lastName, ', ', state.firstName])
+    }
   })
 }
 
-function searchMatches (str, state) {
+function searchMatch (str, state) {
   // Check if the given person matches the given search string
   // Returns true if there is a match
   const fullName = state.firstName + ' ' + state.lastName
   const idx = fullName.toLowerCase().indexOf(str.toLowerCase())
   return idx !== -1
-}
-
-function personView (state, emit) {
-  return h('div', {
-    on: {click: () => emit('SELECT')},
-    style: {cursor: 'pointer'},
-    class: {hidden: state.hidden, selected: state.selected}
-  }, [state.lastName, ', ', state.firstName])
 }
 
 function getNameFromForm (form) {
@@ -60,22 +58,25 @@ function People (defaultPeople = []) {
         if (!last.length || !first.length) return
         const newPerson = Person(last, first)
         emit('ADD_PERSON', newPerson)
+        // Select the new person and clear out any search
         state.selectedPerson = newPerson
         state.search = ''
         emit('SEARCH')
       },
       ADD_PERSON: function (newPerson, state, emit) {
         // Append a person component to the .people array
-        debug(newPerson)
+        debug(newPerson, 'person' + newPerson.state.id)
         newPerson.on('SELECT', () => {
+          // Deselect any previously selected people
           state.people.filter(p => p.state.selected).forEach(p => {
             p.state.selected = false
             p.emit('UPDATE', p.state)
           })
           if (state.selectedPerson === newPerson) {
+            // Deselect a previously selected person
             state.selectedPerson = {}
-            return
           } else {
+            // Select a new person
             newPerson.state.selected = true
             newPerson.emit('UPDATE', newPerson.state)
             state.selectedPerson = newPerson
@@ -146,6 +147,6 @@ function peopleView (state, emit) {
 }
 
 const ppl = People([Person('Emil', 'Hans'), Person('Mustermann', 'Max'), Person('Tisch', 'Roman')])
-debug(ppl)
+debug(ppl, 'people')
 
 document.body.appendChild(ppl.node)
