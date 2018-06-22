@@ -1,3 +1,19 @@
+const snabbdom = require('snabbdom')
+const patch = snabbdom.init([
+  require('snabbdom/modules/class').default,
+  require('snabbdom/modules/attributes').default,
+  require('snabbdom/modules/eventlisteners').default,
+  require('snabbdom/modules/style').default,
+  require('snabbdom/modules/props').default,
+  require('snabbdom/modules/dataset').default
+])
+
+function mount (container, view) {
+  let vnode = patch(container, view())
+  updated(function () {
+    vnode = patch(vnode, view())
+  })
+}
 
 function Tree (rootVal) {
   return {
@@ -7,8 +23,6 @@ function Tree (rootVal) {
 }
 
 const globalState = Tree(null)
-
-module.exports = {emit, get, Component, globalState, updated, del}
 
 // TODO double-splats ? eg. emit(['**', 'modal'], 'close')
 // TODO remove component
@@ -123,3 +137,7 @@ function Component (options = {}) {
 
   return component.state
 }
+
+const h = require('snabbdom/h').default
+
+module.exports = {emit, get, Component, globalState, updated, del, mount, h}
