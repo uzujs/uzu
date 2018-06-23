@@ -1,5 +1,18 @@
 const {h, component} = require('../..')
 
+// Component({
+//   scope: ['timer'],
+//   state: {elapsedMs: 0, duration: 1000, timeoutID: null, status: 'reset'},
+//   on: {
+//     toggle: () => {
+//     },
+//     reset: () => {
+//     },
+//     done: () => {
+//     }
+//   }
+// })
+
 function transition (event, status) {
   // A simple state machine for controlling the timer
   // State transitions

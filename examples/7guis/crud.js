@@ -1,5 +1,58 @@
 const {h, component, debug} = require('../..')
 
+// var id = 0
+// function Person (firstName, lastName) {
+//   id += 1
+//   Component({
+//     scope: ['person', id],
+//     state: {id, firstName, lastName, selected: false, hidden: false},
+//     on: {
+//       filter: function (str, {state}) {
+//         return {hidden: nameMatchesStr(str, state)}
+//       }
+//     }
+//   })
+// }
+//
+// Component({
+//   scope: ['people'],
+//   state: {selectedID: null},
+//   on: {
+//     search: function (str) {
+//       emit(['person', '*'], 'filter', str)
+//     },
+//     select: function (id, {state}) {
+//       if (state.selectedID) {
+//         emit(['person', state.selectedID], 'merge', {selected: false})
+//       }
+//       emit(['person', id], 'merge', {selected: true})
+//       const person = get(['person', id])
+//       emit(['edit-form'], 'merge', {firstName: person.firstName, lastName: person.lastName)
+//     },
+//     update: function (_, {state}) {
+//       const name = get(['edit-form'])
+//       const person = get(['person', selectedID])
+//       emit(['person', selectedID], 'merge', name)
+//     },
+//     del: function (_, {selectedID}) {
+//       emit(['person', selectedID], 'delete')
+//       emit(['edit-form'], 'merge', {firstName: '', lastName: ''})
+//       return {selectedID: null}
+//     },
+//     create: function () {
+//       const name = get(['edit-form'])
+//       const person = Person(name.firstName, name.lastName)
+//       emit(['edit-form'], 'merge', name)
+//       return {selectedID: person.id}
+//     }
+//   }
+// })
+//
+// Component({
+//   scope: ['edit-form'],
+//   state: {firstName: '', lastName: ''}
+// })
+
 let id = 1
 function Person (lastName, firstName) {
   return {
