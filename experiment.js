@@ -1,20 +1,12 @@
-const snabbdom = require('snabbdom')
-const patch = snabbdom.init([
-  require('snabbdom/modules/class').default,
-  require('snabbdom/modules/attributes').default,
-  require('snabbdom/modules/eventlisteners').default,
-  require('snabbdom/modules/style').default,
-  require('snabbdom/modules/props').default,
-  require('snabbdom/modules/dataset').default
-])
+/**
+ * Global trees 🌲🌲🌲🌲🌲🌲🌲🌲🌲🌲🌲🌲
+ * TODO double-splats ? eg. emit(['**', 'modal'], 'close')
+ * TODO remove component
+ */
 
-function mount (container, view) {
-  let vnode = patch(container, view())
-  updated(function () {
-    vnode = patch(vnode, view())
-  })
-}
-
+// Generic multi-child tree data structure
+// Every node has a single value, possibly null
+// Every child node has a string name (each key in the children obj)
 function Tree (rootVal) {
   return {
     root: rootVal,
@@ -22,12 +14,11 @@ function Tree (rootVal) {
   }
 }
 
-const globalState = Tree(null)
+window._uzu_globalTree = window._uzu_globalTree || Tree(null)
+const globalTree = window._uzu_globalTree
 
-// TODO double-splats ? eg. emit(['**', 'modal'], 'close')
-// TODO remove component
-
-function getTreePath (tree, path) {
+function fetchInTree (tree, path) {
+  // fetch a deeply nested value based on a path (array) in a tree
   let node = tree
   for (let i = 0; i < path.length; ++i) {
     node = node.children[path[i]]
@@ -36,37 +27,38 @@ function getTreePath (tree, path) {
 }
 
 function setTreePathVal (tree, path, val) {
+  // Set the value of a deeply nested node in a tree based on a path (array)
+  // Initializes nodes as it goes
   let node = tree
-  for (let i = 0; i < path.length - 1; ++i) {
+  for (let i = 0; i < path.length; ++i) {
     if (!node.children[path[i]]) {
       node.children[path[i]] = Tree(null)
     }
     node = node.children[path[i]]
   }
-  const last = path[path.length - 1]
-  // if (node.children[last]) throw new Error('Scope already set: ' + path)
-  node.children[last] = Tree(val)
+  node.root = val
 }
 
+// Global array of listeners functions -- called whenver globalTree is updated
 const listeners = []
-
-function updated (fn) {
+function listen (fn) {
   listeners.push(fn)
 }
 
 function emit (scope, event, data) {
+  // Emit an event for some scope with some data
   if (!Array.isArray(scope) || !scope.length) {
     throw new TypeError('The scope argument should be a non-empty array')
   }
   if (!event || !event.length) {
-    throw new TypeError('The event argument should be a non-empty string')
+    throw new TypeError('The event name should be a non-empty string')
   }
   let multiple = false
   if (hasSplat(scope)) {
     scope = scope.slice(0, scope.length - 1)
     multiple = true
   }
-  let node = getTreePath(globalState, scope)
+  let node = fetchInTree(globalTree, scope)
   if (multiple) {
     const children = Object.values(node.children)
     children.map(n => n.root).map(r => r.emitter).forEach(e => {
@@ -78,10 +70,12 @@ function emit (scope, event, data) {
 }
 
 function hasSplat (scope) {
+  // Does a scope end in a star? (eg. ['person', '*'])
   return scope[scope.length - 1] === '*'
 }
 
 function get (scope) {
+  // Fetch data for some scope
   if (!Array.isArray(scope) || !scope.length) {
     throw new TypeError('The scope argument should be a non-empty array')
   }
@@ -90,7 +84,7 @@ function get (scope) {
     getMany = true
     scope = scope.slice(0, scope.length - 1)
   }
-  let node = getTreePath(globalState, scope)
+  let node = fetchInTree(globalTree, scope)
   if (getMany) {
     const children = Object.values(node.children)
     return children.map(n => n.root).map(r => r.state)
@@ -100,13 +94,18 @@ function get (scope) {
 }
 
 function del (scope) {
-  // delete in global state
-  setTreePathVal(globalState, scope, null)
+  // Delete a component in the global state
+  // Also deletes all its children
+  setTreePathVal(globalTree, scope, null)
 }
 
-function Component (options = {}) {
+function component (options = {}) {
+  // Create a component which sets data in global state and saves an event handler
   if (!Array.isArray(options.scope) || !options.scope.length) {
     throw new TypeError('The .scope property should be a non-empty array')
+  }
+  if (!options.state || typeof options.state !== 'object') {
+    throw new TypeError('The .state property must be an object')
   }
   const emitter = {
     handlers: {},
@@ -114,23 +113,24 @@ function Component (options = {}) {
       this.handlers[eventName](data)
     }
   }
-  if (!options.state || typeof options.state !== 'object') {
-    throw new TypeError('The .state property must be an object')
-  }
-  let component = {
+  const component = {
     state: options.state,
     emitter: emitter,
     scope: options.scope
   }
-  setTreePathVal(globalState, component.scope, {emitter, state: component.state})
+  // Set the emitter and state in the global tree
+  setTreePathVal(globalTree, component.scope, {emitter, state: component.state})
 
+  // Initialize event handler functions
   const on = options.on || {}
   for (let eventName in on) {
     emitter.handlers[eventName] = function (data) {
-      const result = on[eventName](data, component)
+      const result = on[eventName](data, component.state)
       if (result !== undefined) {
+        // Re-assign a new object as the state
         component.state = Object.assign(component.state, result)
-        listeners.forEach(fn => fn({eventName, component}))
+        // Call any event listeners
+        listeners.forEach(fn => fn(eventName, data))
       }
     }
   }
@@ -138,6 +138,4 @@ function Component (options = {}) {
   return component.state
 }
 
-const h = require('snabbdom/h').default
-
-module.exports = {emit, get, Component, globalState, updated, del, mount, h}
+module.exports = {emit, get, component, listen, del}

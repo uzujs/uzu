@@ -1,6 +1,7 @@
-const {emit, get, Component, mount, h} = require('../../experiment')
+const {h, render} = require('../../experiment-render')
+const {emit, get, component} = require('../../experiment')
 
-Component({
+component({
   scope: ['temps', 'fahren'],
   state: {val: 32, type: 'fahren'},
   on: {
@@ -9,7 +10,7 @@ Component({
   }
 })
 
-Component({
+component({
   scope: ['temps', 'celsius'],
   state: {val: 0, type: 'celsius'},
   on: {
@@ -45,4 +46,4 @@ const getVal = ev => ev.currentTarget.value
 
 const container = document.createElement('div')
 document.body.appendChild(container)
-mount(container, view)
+render(container, view)
