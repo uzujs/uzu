@@ -86,9 +86,11 @@ function get (scope) {
   }
   let node = fetchInTree(globalTree, scope)
   if (getMany) {
+    if (node === undefined) return []
     const children = Object.values(node.children)
     return children.map(n => n.root).map(r => r.state)
   } else {
+    if (node === undefined) return null
     return node.root.state
   }
 }
@@ -96,7 +98,9 @@ function get (scope) {
 function del (scope) {
   // Delete a component in the global state
   // Also deletes all its children
-  setTreePathVal(globalTree, scope, null)
+  const lastEntry = scope[scope.length - 1]
+  const parentNode = fetchInTree(globalTree, scope.slice(0, -1))
+  delete parentNode.children[lastEntry]
 }
 
 function component (options = {}) {
@@ -123,6 +127,7 @@ function component (options = {}) {
 
   // Initialize event handler functions
   const on = options.on || {}
+  on.merge = obj => obj
   for (let eventName in on) {
     emitter.handlers[eventName] = function (data) {
       const result = on[eventName](data, component.state)
