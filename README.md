@@ -1,10 +1,107 @@
 # :cyclone: uzu :cyclone:
 
-Uzu is a small, simple, and efficient library for creating UI components. It combines virtual DOM using [snabbdom](https://github.com/snabbdom/snabbdom) with a simple event emitter and state object.
+Uzu is a small, simple, and efficient library for creating UI components with a slightly different approach.
 
-Uzu encourages a "fractal component" style of architecture, where the UI is built up from many small, self-contained pieces. Components can easily communicate state and events with each other.
+The premise of uzu is that UI programming becomes messy and difficult because of **state and event intercommunication across the whole layout of the page**. In many UI frameworks, it's easy to make a spaghetti mess of components, parameters, and states.
 
-The architecture uses efficient [sub-tree patching](https://github.com/snabbdom/snabbdom/issues/45).
+In uzu, you have one global **state tree** that can be accessed using **scopes**. Scopes are simple
+arrays of strings.
+
+To initialize data and event handlers in the global state tree, you can make a **component**:
+
+```js
+const {component} = require('uzu')
+
+const counter = component({
+  scope: ['counter'],
+  state: {count: 0},
+  on: {
+    add: (n, {count}) => ({count: count + n})
+  }
+})
+
+counter // -> {count: 0}
+```
+
+To access state for a component, you use its scope:
+
+```js
+const {get} = require('uzu')
+
+get(['counter']) // -> {count: 0}
+```
+
+To fire an event for a component, you also use its scope:
+
+```js
+const {get, emit} = require('uzu')
+
+emit(['counter'], 'add', 2)
+get(['counter']) // -> {count: 2}
+```
+
+If you don't want to hard-code your component's scope naming, you can parameterize it:
+
+```js
+function Counter (start, name) {
+  return component({
+    scope: ['counter', name],
+    state: {count: start},
+    on: {..}
+  })
+}
+
+const counter1 = Counter(1, 'a')
+const counter2 = Counter(2, 'b')
+
+get(['counter', 'a']) // -> {count: 1}
+get(['counter', 'b']) // -> {count: 2}
+```
+
+You can return an array of all component states under a certain scope by using '*':
+
+```js
+get(['counter', '*']) // -> [{count: 1}, {count: 2}]
+```
+
+Likewise, you can emit an event for all components under a scope by using '*':
+
+```js
+emit(['counter', '*'], 'add', 2)
+get(['counter', '*']) // -> [{count: 3}, {count: 4}]
+```
+
+To render your dynamic global state to the DOM, you can use Uzu's bindings to Snabbdom:
+
+```js
+const {h, render} = require('uzu')
+
+function view () {
+  const counters = get(['counter', '*'])
+  return h('div', [
+    h('h2', 'Counters'),
+    h('div', counters.map(counterView)),
+    h('button', {on: {click: createCounter}}, 'Add counter')
+  ])
+}
+
+function counterView (counter) {
+  return h('div', [
+    h('p', 'Count: ', counter.count),
+    h('button', {
+      on: {click: () => emit(['counter', counter.id], 'add', 1)}
+    }, 'Increment'),
+    h('button', {
+      on: {click: () => emit(['counter', counter.id], 'add', -1)}
+    }, 'Decrement')
+  ])
+}
+
+const container = document.querySelector('.container')
+render(container, view)
+```
+
+Your dom will get updated automatically whenever data in the global state tree is updated.
 
 _Quick examples_
 

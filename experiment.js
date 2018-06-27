@@ -59,6 +59,9 @@ function emit (scope, event, data) {
     multiple = true
   }
   let node = fetchInTree(globalTree, scope)
+  if (!node || !node.root) {
+    throw new Error('Unknown scope: ' + scope)
+  }
   if (multiple) {
     const children = Object.values(node.children)
     children.map(n => n.root).map(r => r.emitter).forEach(e => {
@@ -101,6 +104,7 @@ function del (scope) {
   const lastEntry = scope[scope.length - 1]
   const parentNode = fetchInTree(globalTree, scope.slice(0, -1))
   delete parentNode.children[lastEntry]
+  listeners.forEach(fn => fn())
 }
 
 function component (options = {}) {
