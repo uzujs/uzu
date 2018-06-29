@@ -6,7 +6,8 @@ const patch = snabbdom.init([
   require('snabbdom/modules/props').default,
   require('snabbdom/modules/style').default,
   require('snabbdom/modules/eventlisteners').default,
-  require('snabbdom/modules/dataset').default
+  require('snabbdom/modules/dataset').default,
+  require('snabbdom/modules/attributes').default
 ])
 
 const h = require('snabbdom/h').default
@@ -23,11 +24,9 @@ function component (options) {
   const handlers = {}
   const emitter = mitt(handlers)
   const instance = {
+    view: options.view,
     state: state,
     on: function (eventName, callback) {
-      if (eventName === 'UPDATE') {
-        errors.overwriteUpdateEvent()
-      }
       emitter.on(eventName, callback)
     },
     emit: function (eventName, data) {
@@ -38,21 +37,13 @@ function component (options) {
     }
   }
 
-  if (options.on.UPDATE) {
-    errors.overwriteUpdateEvent()
-    throw new Error('You cannot overwrite the UPDATE event: it is a reserved event name.')
-  }
-
-  options.on.UPDATE = function update (newState) {
-    if (arguments.length) {
-      instance.state = newState
-    }
-    return render(instance, options.view)
-  }
-
   for (let eventName in options.on) {
     emitter.on(eventName, function (data) {
-      options.on[eventName](data, instance.state, instance.emit)
+      const result = options.on[eventName](data, instance.state, instance.emit)
+      if (result && typeof result === 'object') {
+        instance.state = Object.assign(instance.state, result)
+      }
+      render(instance, options.view)
     })
   }
 

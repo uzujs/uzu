@@ -1,3 +1,32 @@
+const {component, system, collection, h} = require('../systems')
+
+// Basic counter component
+const counter = system({
+  total: component({
+    state: {count: 0},
+    receive: {
+      add: (n, {count}) => ({count: count + n})
+    }
+  })
+}, ({total}, send) => {
+  return h('div', [
+    h('p', ['Count: ', total.state.count]),
+    h('button', {on: {click: () => send('add', 1)}}, 'Increment'),
+    h('button', {on: {click: () => send('add', -1)}}, 'Decrement')
+  ])
+})
+
+// Wrap a counter with a remove button
+const counterWithRemove = system({
+  counter: counter
+}, ({counter}, send) => {
+  return h('div', [
+    h('button', {on: {click: () => send('remove', counter.id)}}, 'Remove),
+    counter.vnode
+  ])
+})
+
+/*
 const {h, component, debug} = require('../')
 
 var id = 0
@@ -105,3 +134,4 @@ const list = CounterList([])
 debug(list, 'list')
 
 document.body.appendChild(list.node)
+*/

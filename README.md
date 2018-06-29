@@ -105,6 +105,8 @@ Your dom will get updated automatically whenever data in the global state tree i
 
 _Quick examples_
 
+* 7guis
+  * [CRUD](examples/7guis/crud.js)
 * [Multiple counters](examples/counter-many.js)
 * [Countdown timer](examples/7guis/timer.js)
 

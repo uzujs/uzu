@@ -1,154 +1,163 @@
-const {component, emit, get, del} = require('../../experiment')
-const {render, h} = require('../../experiment-render')
+const {h, component, debug} = require('../..')
 
-var id = 0
-function Person (firstName, lastName) {
-  // An individual person with a name, id, and hidden state
+let id = 0
+function Person (name) {
   id += 1
   return component({
-    scope: ['person', id],
-    state: {id, firstName, lastName, hidden: false},
+    state: {
+      firstName: name.firstName,
+      lastName: name.lastName,
+      id: id,
+      selected: false,
+      hidden: false
+    },
     on: {
-      filter: function (str, {firstName, lastName}) {
-        const name = (firstName + ' ' + lastName).toLowerCase()
-        // Hide the person if they do not match the search string
-        return {
-          hidden: name.indexOf(str.toLowerCase()) === -1
+      select: (_, {selected}) => ({selected: !selected}),
+      deselect: () => ({selected: false}),
+      filter: (str, state) => {
+        const name = (state.firstName + ' ' + state.lastName).toLowerCase()
+        const hidden = name.indexOf(str.toLowerCase()) === -1
+        if (hidden && state.selected) {
+          // Deselect them if they are hidden from search
+          return {hidden, selected: false}
+        } else {
+          return {hidden}
         }
+      },
+      updateName: ({firstName, lastName}) => {
+        if (!firstName || !lastName) return
+        return {firstName, lastName}
       }
+    },
+    view: function (state, emit) {
+      return h('div', {
+        key: state.id,
+        style: {
+          background: state.selected ? 'grey' : 'transparent',
+          cursor: 'pointer',
+          display: state.hidden ? 'none' : 'block'
+        },
+        on: {click: () => emit('select')}
+      }, [
+        state.lastName, ', ', state.firstName
+      ])
     }
   })
 }
 
-// The 'people' component controls selection, search, and dispatches CRUD events
-component({
-  scope: ['people'],
-  state: {selectedID: null},
-  on: {
-    search: function (str, {selectedID}) {
-      emit(['person', '*'], 'filter', str)
-      emit(['edit-form'], 'merge', {search: str})
-      // Deselect the selected person if they are not in the search results
-      if (selectedID) {
-        const person = get(['person', selectedID])
-        if (person.hidden) {
-          emit(['people'], 'select', selectedID)
+function PersonForm () {
+  // Shows a form for a person's name
+  // Tracks a selected person
+  return component({
+    state: {selectedPerson: null, name: {firstName: '', lastName: ''}},
+    on: {
+      setPerson: person => {
+        let firstName = ''
+        let lastName = ''
+        if (person !== null) {
+          firstName = person.state.firstName
+          lastName = person.state.lastName
         }
-      }
+        return {
+          selectedPerson: person,
+          name: {firstName, lastName}
+        }
+      },
+      // Merge a new name into state.name
+      setName: (name, state) => ({name: Object.assign(state.name, name)})
     },
-    select: function (id, {selectedID}) {
-      if (id === selectedID) {
-        // Toggle off the same selection
-        emit(['edit-form'], 'clear')
-        return {selectedID: null}
-      }
-      const person = get(['person', id])
-      emit(['edit-form'], 'merge', {firstName: person.firstName, lastName: person.lastName})
-      return {selectedID: id}
-    },
-    update: function (_, {selectedID}) {
-      const name = get(['edit-form'])
-      emit(['person', selectedID], 'merge', name)
-    },
-    del: function (_, {selectedID}) {
-      // Deselect the current person
-      emit(['people'], 'select', selectedID)
-      // Delete them from the tree
-      del(['person', selectedID])
-      // Clear the fields
-      emit(['edit-form'], 'clear')
-      // Clear any search
-      emit(['people'], 'search', '')
-    },
-    create: function () {
-      const {firstName, lastName} = get(['edit-form'])
-      const person = Person(firstName, lastName)
-      emit(['people'], 'select', person.id)
-      emit(['people'], 'search', '')
-    }
-  }
-})
-
-component({
-  scope: ['edit-form'],
-  state: {firstName: '', lastName: ''},
-  on: {
-    clear: () => ({firstName: '', lastName: ''})
-  }
-})
-
-function view () {
-  const selectedID = get(['people']).selectedID
-  const selected = get(['person', selectedID])
-  const formState = get(['edit-form'])
-  const people = get(['person', '*'])
-  let selectedStatus
-  if (selected) {
-    selectedStatus = h('p', ['Selected: ', selected.firstName, ' ', selected.lastName])
-  } else {
-    selectedStatus = h('p', 'No-one selected')
-  }
-  return h('div', [
-    h('div', [
-      'Filter prefix: ',
-      h('input', {
-        props: {type: 'text'},
-        on: {keyup: ev => emit(['people'], 'search', ev.currentTarget.value)}
-      })
-    ]),
-    h('div', people.map(p => personView(p, selectedID))),
-    h('hr'),
-    h('form', [
-      h('div', [
-        selectedStatus,
-        'First name: ',
+    view: function (state, emit) {
+      return h('div', [
         h('input', {
-          props: {type: 'text', name: 'first', value: formState.firstName || ''},
-          on: {change: ev => emit(['edit-form'], 'merge', {firstName: ev.currentTarget.value})}
-        })
-      ]),
-      h('div', [
-        'Last name: ',
+          props: {type: 'text', placeholder: 'First name', value: state.name.firstName},
+          on: {
+            input: ev => emit('setName', {firstName: ev.currentTarget.value})
+          }
+        }),
         h('input', {
-          props: {type: 'text', name: 'last', value: formState.lastName || ''},
-          on: {change: ev => emit(['edit-form'], 'merge', {lastName: ev.currentTarget.value})}
+          props: {type: 'text', placeholder: 'Last name', value: state.name.lastName},
+          on: {
+            input: ev => emit('setName', {lastName: ev.currentTarget.value})
+          }
         })
-      ]),
-      h('div', [
-        h('button', {
-          props: {type: 'button', disabled: selectedID},
-          on: {click: () => emit(['people'], 'create')}
-        }, 'Create')
-      ]),
-      h('div', [
-        h('button', {
-          props: {type: 'button', disabled: !selectedID},
-          on: {click: () => emit(['people'], 'update')}
-        }, 'Update')
-      ]),
-      h('div', [
-        h('button', {
-          props: {type: 'button', disabled: !selectedID},
-          on: {click: () => emit(['people'], 'del')}
-        }, 'Delete')
       ])
-    ])
-  ])
+    }
+  })
 }
 
-function personView (person, selectedID) {
-  if (person.hidden) return ''
-  const isSelected = selectedID === person.id
-  return h('div', {
-    on: {click: () => emit(['people'], 'select', person.id)},
-    style: {cursor: 'pointer', background: isSelected ? 'gray' : 'transparent'}
-  }, [person.lastName, ', ', person.firstName])
+function People () {
+  const p1 = Person({firstName: 'Max', lastName: 'Mustermann'})
+  const p2 = Person({firstName: 'Roman', lastName: 'Tisch'})
+  const p3 = Person({firstName: 'Hans', lastName: 'Emil'})
+  const form = PersonForm()
+  return component({
+    state: {people: [p1, p2, p3], form},
+    on: {
+      select: function (person, state) {
+        // We add an extra event wrapper to toggle off the selection from other people
+        state.people.filter(p => p.state.id !== person.state.id && p.state.selected)
+          .forEach(p => p.emit('deselect'))
+        if (person.state.selected) {
+          // Set the name in the form
+          state.form.emit('setPerson', person)
+        } else {
+          // Clear the name from the form
+          state.form.emit('setPerson', null)
+        }
+      },
+      filter: function (str, state) {
+        state.people.forEach(p => p.emit('filter', str))
+      },
+      update: function (_, state) {
+        const person = state.form.state.selectedPerson
+        person.emit('updateName', state.form.state.name)
+      },
+      del: function (_, state) {
+        const person = state.form.state.selectedPerson
+        const people = state.people.filter(p => p.state.id !== person.state.id)
+        return {people}
+      },
+      create: function (_, state) {
+        const name = state.form.state.name
+        if (!name.firstName || !name.lastName) return
+        const person = Person(name)
+        const people = state.people.concat([person])
+        return {people}
+      }
+    },
+    view: function (state, emit) {
+      return h('div', [
+        h('div', [
+          h('input', {
+            props: {type: 'text', placeholder: 'Filter people'},
+            on: {
+              input: ev => emit('filter', ev.currentTarget.value)
+            }
+          })
+        ]),
+        h('div', state.people.map(p => {
+          return h('div', {
+            key: p.state.id,
+            on: {click: () => emit('select', p)}
+          }, [ p.vnode ])
+        })),
+        h('div', [ form.vnode ]),
+        h('div', [
+          h('button', {on: {click: () => emit('create')}}, 'Create'),
+          h('button', {
+            on: {click: () => emit('update')},
+            props: {disabled: !state.form.state.selectedPerson}
+          }, 'Update'),
+          h('button', {
+            on: {click: () => emit('del')},
+            props: {disabled: !state.form.state.selectedPerson}
+          }, 'Delete')
+        ])
+      ])
+    }
+  })
 }
 
-Person('Hans', 'Emil')
-Person('Max', 'Mustermann')
-Person('Roman', 'Tisch')
+const p1 = People()
 
-const container = document.createElement('div')
-document.body.append(container)
-render(container, view)
+document.body.appendChild(p1.node)

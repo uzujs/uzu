@@ -1,5 +1,159 @@
-const {component, emit, get, del} = require('../../experiment')
-const {render, h} = require('../../experiment-render')
+const {h, component, debug} = require('../..')
+
+selector component({
+  state: {selected: false},
+  receive: {
+    deselect: x
+    select: x
+    toggle: x
+  }
+})
+
+system({
+  selection: selection,
+  click: event('toggle'),
+})
+
+system({
+  svg: svg,
+  diameter: component({
+    state: {diameter: 50},
+    receive: {
+      'svg:circles:selected': (s, c, {diameter}) => {
+        return {diameter: c.diameter}
+      }
+    }
+  })
+})
+
+
+function Circle ({x, y, radius, id}) {
+  return component({
+    state: {x, y, radius, id, selected: true},
+    on: {
+      toggleSelect: (_, {selected}) => ({selected: !selected}),
+      deselect: () => ({selected: false}),
+      setRadius: r => ({radius: r})
+    },
+    view: function (state, emit) {
+      return h('circle', {
+        key: state.id,
+        on: {
+          click: () => emit('toggleSelect')
+        },
+        style: {cursor: 'pointer'},
+        attrs: {
+          'cx': state.x,
+          'cy': state.y,
+          'r': state.radius,
+          'fill': state.selected ? 'lightgrey' : 'white',
+          'data-id': state.id
+        }
+      })
+    }
+  })
+}
+
+function Svg () {
+  return component({
+    state: {circles: [], diameter: 50},
+    on: {
+      setDiameter: (diameter, state) => {
+        state.circles.filter(c => c.state.selected).forEach(c => {
+          c.emit('setRadius', diameter / 2)
+        })
+        return {diameter}
+      },
+      createCircle: (ev, state, emit) => {
+        if (ev.target.tagName === 'circle') return
+        state.circles.filter(c => c.state.selected).forEach(c => {
+          c.emit('deselect')
+        })
+        const x = ev.offsetX
+        const y = ev.offsetY
+        const id = Math.random()
+        const circle = Circle({x, y, radius: state.diameter / 2, id: id})
+        // Toggle off other circles when a circle is selected
+        circle.on('toggleSelect', () => {
+          // Circle was selected
+          if (circle.state.selected) {
+            // Deselect any other selected circles
+            state.circles.filter(c => c.state.id !== circle.state.id && c.state.selected).forEach(c => {
+              c.emit('deselect')
+            })
+            emit('setDiameter', circle.state.radius * 2)
+          }
+        })
+        const circles = state.circles.concat([circle])
+        return {circles}
+      },
+      select: (circle, state, emit) => {
+        const diameter = circle.state.radius * 2
+        return {diameter}
+      }
+    },
+    view: function (state, emit) {
+      return h('svg', {
+        on: {click: ev => emit('createCircle', ev)}
+      }, [
+        h('g', {
+          attrs: {
+            'stroke-width': '1',
+            'stroke': 'black',
+            'fill': 'white'
+          }
+        }, state.circles.map(c => {
+          return h('g', {
+            on: {click: () => emit('select', c)}
+          }, [ c.vnode ])
+        }))
+      ])
+    }
+  })
+}
+
+function CircleController () {
+  const svg = Svg()
+  return component({
+    state: {svg, diameter: 50},
+    receive: {
+      setDiameter: (diameter) => {
+        return {diameter}
+      }
+    },
+    view: (state, emit) => {
+      return h('div', {
+        style: {textAlign: 'center'}
+      }, [
+        h('style', {
+          props: {
+            innerHTML: (`
+              body { background-color: #efefef; }
+              svg {
+                cursor: pointer;
+                width: 600px;
+                height: 400px;
+                background-color: white;
+                border: 1px solid black;
+              }
+            `)
+          }
+        }),
+        h('label', ['Diameter: ', state.diameter]),
+        h('input', {
+          emit: {input: 'setDiameter'},
+          props: {type: 'range', min: 10, max: 500, value: state.svg.state.diameter},
+          on: {input: ev => emit('setDiameter', ev.currentTarget.value)}
+        }),
+        svg.view(svg.state, svg.emit)
+      ])
+    }
+  })
+}
+
+const circles = CircleController()
+
+document.body.appendChild(circles.node)
 
 /**
  * This example uses the "command pattern", where every undo-able or redo-able action is described
@@ -12,6 +166,7 @@ const {render, h} = require('../../experiment-render')
  * where each command may need to do server requests, local storage operations, etc, etc
  */
 
+/*
 function Circle (x, y, radius, id) {
   return component({
     scope: ['circle', id],
@@ -218,3 +373,4 @@ function circleView (circle) {
 const container = document.createElement('div')
 document.body.appendChild(container)
 render(container, view)
+*/

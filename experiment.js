@@ -4,6 +4,9 @@
  * TODO remove component
  */
 
+const mitt = require('mitt')
+const emitter = mitt()
+
 // Generic multi-child tree data structure
 // Every node has a single value, possibly null
 // Every child node has a string name (each key in the children obj)
@@ -37,12 +40,6 @@ function setTreePathVal (tree, path, val) {
     node = node.children[path[i]]
   }
   node.root = val
-}
-
-// Global array of listeners functions -- called whenver globalTree is updated
-const listeners = []
-function listen (fn) {
-  listeners.push(fn)
 }
 
 function emit (scope, event, data) {
@@ -98,13 +95,24 @@ function get (scope) {
   }
 }
 
+function getEmitterName (scope, eventName) {
+  // From a scope and event name, produce a single string for use in the global emitter
+  return scope.join(':') + ':' + eventName
+}
+
+function handle (scope, eventName, callback) {
+  if (hasSplat(scope)) {
+  }
+  const emitterName = getEmitterName(scope, eventName)
+  emitter.on(emitterName, callback)
+}
+
 function del (scope) {
-  // Delete a component in the global state
-  // Also deletes all its children
+  // Delete a scope, including all state, handlers, and child data
   const lastEntry = scope[scope.length - 1]
   const parentNode = fetchInTree(globalTree, scope.slice(0, -1))
   delete parentNode.children[lastEntry]
-  listeners.forEach(fn => fn())
+  // TODO call emitter.off for every emitter on this scope
 }
 
 function component (options = {}) {
@@ -139,7 +147,7 @@ function component (options = {}) {
         // Re-assign a new object as the state
         component.state = Object.assign(component.state, result)
         // Call any event listeners
-        listeners.forEach(fn => fn(eventName, data))
+        emitter.emit(getEmitterName(component.scope, eventName), data)
       }
     }
   }
@@ -147,4 +155,4 @@ function component (options = {}) {
   return component.state
 }
 
-module.exports = {emit, get, component, listen, del}
+module.exports = {emit, get, component, del, handle}
