@@ -58,12 +58,6 @@ function component (options) {
   return instance
 }
 
-const errors = {
-  overwriteUpdateEvent: function () {
-    throw new Error('You cannot overwrite the UPDATE event: it is a reserved event name.')
-  }
-}
-
 function render (component, view) {
   // Re-render a component
   // In our case, we mutate the original vnode to have all the new properties

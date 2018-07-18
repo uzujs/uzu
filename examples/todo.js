@@ -70,6 +70,10 @@ function TaskList () {
         state.remaining = getRemainingCount(state.tasks)
         emit('UPDATE', state)
       },
+      TOGGLE: function (idx, state) {
+        const task = state.tasks[idx]
+        task.send('TOGGLE')
+      },
       ADD_NEW: function (ev, state, emit) {
         // Add new todo item from form submit event
         ev.preventDefault()

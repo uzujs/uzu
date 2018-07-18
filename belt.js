@@ -55,7 +55,13 @@ function belt (config) {
       return initWorker(worker, send, idx)
     }
   })
-  return {send: send(0), workers}
+  return {
+    send: send(0),
+    workers,
+    then: function (callback) {
+      listeners.push(callback)
+    }
+  }
 }
 
 function initWorker (config, send, idx) {
@@ -138,12 +144,6 @@ const combo = belt([
   }
 ])
 
-combo.send({total: 10})
-combo.send({add: 5})
-combo.send({mul: 5})
-combo.send({add: 5})
-combo.send({mul: 5})
-
 const multiCount = belt([
   {
     receiveAll: ['id', 'incr', 'allCounters'],
@@ -158,6 +158,17 @@ const multiCount = belt([
       console.log(allCounters)
       send({allCounters})
     }
+  }
+])
+
+// the belt should be stateless; it is a workflow
+// the state travels along it
+// you can accumulate by resending values that you have received
+
+const counter = belt([
+  {
+    receiveAll: ['count'],
+    process: ({count}, send) => send({count: count + 1})
   }
 ])
 
