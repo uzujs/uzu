@@ -1,31 +1,39 @@
 {
   "name": "uzu",
   "version": "0.0.1",
-  "description": "Fractal UI components",
+  "description": "Simple and modular UI components",
   "main": "index.js",
   "directories": {
     "test": "test"
   },
-  "dependencies": {},
+  "dependencies": {
+    "mitt": "1.x",
+    "snabbdom": "0.7.x"
+  },
   "devDependencies": {
-    "common-readme": "^1.1.0",
+    "browserify": "^16.2.3",
+    "budo": "^11.5.0",
     "dependency-check": "^3.1.0",
     "standard": "^11.0.1",
-    "tape": "^4.9.0"
+    "tape": "^4.9.0",
+    "tape-run": "^5.0.0"
   },
   "bugs": {
-    "url": "https://github.com/jayrbolton/uzu/issues"
+    "url": "https://github.com/uzu/uzu/issues"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/jayrbolton/uzu.git"
+    "url": "https://github.com/uzu/uzu.git"
   },
   "scripts": {
-    "test": "dependency-check package.json && standard && node test/",
-    "preversion": "npm run test",
-    "postversion": "git push && git push --tags"
+    "test": "browserify test/*.js | tape-run",
+    "preversion": "npm test"
   },
-  "keywords": [],
-  "author": "jayrbolton <jayrbolton@protonmail.com>",
+  "keywords": [
+    "ui",
+    "frontend",
+    "components"
+  ],
+  "author": "jayrbolton <jayrbolton@gmail.com>",
   "license": "MIT"
 }
