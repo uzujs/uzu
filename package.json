@@ -1,0 +1,23 @@
+{
+  "name": "uzu",
+  "version": "0.2.0",
+  "description": "Minimal UI components",
+  "main": "index.js",
+  "directories": {
+    "example": "examples",
+    "test": "test"
+  },
+  "dependencies": {
+    "snabbdom": "^0.7.3",
+    "tape": "^4.9.2",
+    "tape-run": "^5.0.0"
+  },
+  "devDependencies": {
+    "browserify": "^16.2.3"
+  },
+  "scripts": {
+    "test": "browserify test/*.js | tape-run"
+  },
+  "author": "jayrbolton <jayrbolton@gmail.com> (http://www.jayrbolton.com)",
+  "license": "MIT"
+}
