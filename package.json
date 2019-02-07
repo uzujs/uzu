@@ -8,12 +8,12 @@
     "test": "test"
   },
   "dependencies": {
-    "snabbdom": "^0.7.3",
-    "tape": "^4.9.2",
-    "tape-run": "^5.0.0"
+    "snabbdom": "^0.7.3"
   },
   "devDependencies": {
-    "browserify": "^16.2.3"
+    "browserify": "^16.2.3",
+    "tape": "^4.9.2",
+    "tape-run": "^5.0.0"
   },
   "scripts": {
     "test": "browserify test/*.js | tape-run"
