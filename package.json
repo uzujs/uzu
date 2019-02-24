@@ -1,6 +1,6 @@
 {
   "name": "uzu",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Minimal UI components",
   "main": "index.js",
   "directories": {
@@ -8,7 +8,8 @@
     "test": "test"
   },
   "dependencies": {
-    "snabbdom": "^0.7.3"
+    "snabbdom": "0.7.x",
+    "snabbdom-ministyle": "0.0.1"
   },
   "devDependencies": {
     "browserify": "^16.2.3",
