@@ -100,4 +100,4 @@ To view each child counter, you simply call `counterObject.view()` from within t
 
 #### Styling
 
-You can modularly style elements using [snabbdom-minstyle](https://github.com/uzujs/snabbdom-ministyle).
+We suggest using [Tachyons](http://tachyons.io/) for component styling.
