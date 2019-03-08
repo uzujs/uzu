@@ -8,8 +8,7 @@
     "test": "test"
   },
   "dependencies": {
-    "snabbdom": "0.7.x",
-    "snabbdom-ministyle": "0.0.1"
+    "snabbdom": "0.7.x"
   },
   "devDependencies": {
     "browserify": "^16.2.3",
