@@ -26,8 +26,7 @@ function Component (obj) {
     return obj._vnode
   }
   obj.view = function () {
-    obj._viewArgs = arguments
-    return obj._render()
+    return arguments.length ? obj._render() : obj._vnode
   }
   return obj
 }
