@@ -1,120 +1,131 @@
-// Countdown timer example
+// Multiple countdown timer example
 // Run locally with `budo --live --open examples/timer.js`
 const { Component, h } = require('..')
 
+// A countdown timer component with a state machine
 function Timer (start) {
+  const data = {
+    // Data
+    interval: null, // setInterval reference
+    start, // start time in ms
+    ms: start // elapsed time in ms
+  }
   return Component({
-    // State
-    interval: null,
-    is_running: false,
-    is_reset: true,
-    is_finished: false,
-    start,
-    ms: start,
-    // Methods
-    toggle,
-    reset,
-    // View
+    data,
+    // States and state transitions
+    transitions: {
+      initial: 'initial',
+      reset: [{
+        sources: ['running', 'finished', 'paused'],
+        dest: 'initial',
+        action: (timer) => {
+          if (timer.interval) {
+            clearInterval(timer.interval)
+          }
+          timer.ms = timer.start
+        }
+      }],
+      // Start or pause
+      toggle: [
+        // start
+        {
+          sources: ['initial', 'paused'],
+          dest: 'running',
+          action: (timer) => {
+            timer.interval = setInterval(() => {
+              if (timer.ms <= 0) {
+                clearInterval(timer.interval)
+                timer.ms = 0
+                timer.finish()
+              } else {
+                timer.ms -= 100
+                timer._render()
+              }
+            }, 100)
+          }
+        },
+        // pause
+        {
+          sources: ['running'],
+          dest: 'paused',
+          action: (timer) => {
+            clearInterval(timer.interval)
+            timer.interval = null
+          }
+        }
+      ],
+      finish: [{
+        sources: ['running'],
+        dest: 'finished'
+      }]
+    },
     view
   })
 }
 
-function view () {
+function view (timer) {
   return h('div', [
     h('p', [
-      Math.round(this.ms / 1000),
+      Math.ceil(timer.ms / 1000),
       ' seconds left'
     ]),
     h('button', {
       props: {
-        disabled: this.is_reset
+        disabled: timer.state === 'initial'
       },
       on: {
-        click: () => this.reset()
+        click: () => timer.reset()
       }
     }, 'Reset'),
     h('button', {
       props: {
-        disabled: this.is_finished
+        disabled: timer.state === 'finished'
       },
       on: {
-        click: () => this.toggle()
+        click: () => timer.toggle()
       }
-    }, this.is_running ? 'Pause' : 'Start')
+    }, timer.state === 'running' ? 'Pause' : 'Start')
   ])
 }
 
-// Start or pause the timer
-function toggle () {
-  if (this.is_running) {
-    clearInterval(this.interval)
-    this.interval = null
-    this.is_running = false
-    this._render()
-  } else if (!this.is_finished) {
-    this.interval = setInterval(() => {
-      this.ms -= 100
-      if (this.ms <= 0) {
-        clearInterval(this.interval)
-        this.ms = 0
-        this.is_finished = true
-        this.is_running = false
-      }
-      this._render()
-    }, 100)
-    this.is_running = true
-    this.is_reset = false
-    this._render()
-  }
-}
-
-// Reset the timer
-function reset () {
-  if (this.interval) {
-    clearInterval(this.interval)
-  }
-  this.ms = this.start
-  this.is_reset = true
-  this.is_running = false
-  this.is_finished = false
-  this._render()
-}
+let id = 0
 
 // The TimerList is a demonstration of the modularity and scalability of uzu.
 // Components can be dynamically instantiated, removed, nested, and aggregated
-
-let id = 0
-
+// Global controls can manipulate *all* child timers
 function TimerList () {
   return Component({
-    // State
-    timers: [],
-    // Methods
-    append () {
-      // Wrap each timer in an object with an id
-      this.timers.push({
-        id: id++,
-        cmp: Timer(5000)
-      })
-      this._render()
+    data: {
+      timers: []
     },
-    remove (id) {
-      this.timers = this.timers.filter(t => t.id !== id)
-      this._render()
+    actions: {
+      // Methods
+      append (list) {
+        // Wrap each timer in an object with an id
+        const timer = Timer(5000)
+        const _id = id++
+        timer._emitter.on('state:finished', (obj) => {
+          console.log('timer finished!', timer)
+        })
+        list.timers.push({ id: _id, cmp: timer })
+        list.totalInitial += 1
+      },
+      remove (list, id) {
+        list.timers = list.timers.filter(t => t.id !== id)
+      }
     },
-    // View
-    view () {
+    view (list) {
       return h('div', [
         h('button', {
-          on: { click: () => this.append() }
+          on: { click: () => list.append() }
         }, 'Add timer'),
-        h('div', this.timers.map(timer => {
+        h('div', list.timers.map(timer => {
           return h('div', {
             // It's important for snabbdom to use a key here, when repeating dynamic components like this
             key: timer.id
           }, [
             h('hr'),
-            h('button', { on: { click: () => this.remove(timer.id) } }, 'Remove timer'),
+            h('button', { on: { click: () => list.remove(timer.id) } }, 'Remove timer'),
             timer.cmp.view()
           ])
         }))
@@ -123,4 +134,5 @@ function TimerList () {
   })
 }
 
-document.body.appendChild(TimerList().view().elm)
+const el = TimerList().view().elm
+document.body.appendChild(el)

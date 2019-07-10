@@ -6,16 +6,19 @@ const { Component } = require('..')
 
 function Counter (start = 0) {
   return Component({
-    count: start,
-    incr () {
-      this.count += 1
-      this._render()
+    data: {
+      count: start
     },
-    view () {
+    actions: {
+      incr (counter) {
+        counter.count += 1
+      }
+    },
+    view (counter) {
       return h('div', [
         h('button', {
-          on: { click: () => this.incr() }
-        }, 'Count is ' + this.count)
+          on: { click: () => counter.incr() }
+        }, 'Count is ' + counter.count)
       ])
     }
   })
@@ -24,11 +27,8 @@ function Counter (start = 0) {
 test('counter basic functionality', function (t) {
   const counter = Counter(-1)
   t.deepEqual(counter.count, -1)
-  // No args does not re-render
+  // Initial render
   counter.view()
-  t.strictEqual(counter._vnode.elm.textContent, '')
-  // Args force a re-render
-  counter.view(true)
   t.strictEqual(counter._vnode.elm.textContent, 'Count is -1')
   // Cause a state update and re-render
   counter.incr()
