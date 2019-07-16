@@ -17,58 +17,93 @@ Install via npm with `npm i uzu`
 Import with:
 
 ```js
-const { Component, h } = require('uzu')
+const { stateful, h } = require('uzu')
 ```
 
 * Refer to the [snabbdom documentation](https://github.com/snabbdom/snabbdom) for usage of the `h()` function
   * These snabbdom plugins are included: props, class, eventlisteners, dataset, attributes, and style
 
-### Component({view, data, actions, transitions}) -- initialize a component
+### Stateless components
 
-The component constructor can take a number of options:
+Create a static dom element:
 
-* `view` - a view function that returns a snabbdom virtual-node tree
-* `data` - arbitrary javascript data for your component
-* `actions` - an object of functions for updating component data and re-rendering the view
-* `transitions` - state machine transitions (see below)
+```js
+h('div', {
+  style: { color: 'pink' },
+  on: { click: ev => console.log('hello world!', ev) }
+}, 'Hello world')
+```
 
-### State machines
+### Stateful components
 
-Uzu supports simple statechart functionality to organize your UI logic with the `transitions` option.
+#### stateful(store, view)
 
-To set the initial state machine state, set `transitions.initial` to a string state name. This is required.
+The **store** is any javascript data you want to keep track of in the UI for your component.
 
-Additional `transitions` entries should be objects where: 
-
-* Each key is a transition event name
-* Each value is an array of objects
-  * Each object should have the following keys:
-  * `sources` - array of state names that we are allowed to transition out of
-    for this event
-  * `dest` - a single state name that we transition into
-  * `when` - optional - predicate function. This transition event only occurs
-    when this function returns truthy. Its arguments are an instance of the
-    component, plus any additional data passed in the transition function
-    (`component.transitionEvent(args)`.
-  * `action` - optional - action function to perform as a side effect of this
-    state transition. Its arguments are an instance of the component, plus any
-    additional data passed in the transition function
-    (`component.transitionEventName(args)`)
+The **view** is a function that takes an instance of the component and returns a snabbdom vnode tree (using the `h()` function).
 
 
-### Events
+```js
+const { h, stateful } = require('uzu')
 
-You can listen to an event emitter for component updates: `component._emitter.on('event', args)`
+function Counter (start = 0) {
+  const store = { count: start }
+  return stateful(store, (counter) => {
+    return h('div', [
+      h('button', {
+        on: { click: () => incrCounter(counter) }
+      }, 'Count is ' + counter._store.count)
+    ])
+  })
+}
 
-Events emitted are:
+// Increment the count for a Counter instance
+function incrCounter (counter) {
+  counter._store.count += 1
+  counter._render()
+}
+```
 
-* `action:name` - an action function was called and completed. Callback args will be the args to the action function
-* `transition:name` - a state transition completed. Args will be any args to the transition function
-* `state:name` - The given state has been entered. Arg will be the previous state.
+### Component methods and properties
+
+* `component._render()` -- re-render and patch the DOM for the component. This is called explicitly
+* `component._store` -- Stored data for the component, most likely an object. This can be mutated before a re-render.
+
+### Component trees
+
+Child components can be deeply nested in a hierarchy of parent components. Initialize the child components and save them in the parent component's store.
+
+Say we wanted a parent component with three counters, with a button to increment all:
+
+```js
+function ThreeCounters () {
+  const c1 = Counter(1)
+  const c2 = Counter(2)
+  const c3 = Counter(3)
+  const store = {
+    c1, c2, c3
+  }
+  return stateful(store, (cmp) => {
+    return h('div', [
+      h('button', {
+        on: { click: () => incrAll(cmp) }
+      }, 'Increment all'),
+      c1,
+      c2,
+      c3
+    ])
+  })
+}
+
+// Takes an instance of ThreeCounters
+// Increments all child counters
+function incrAll (cmp) {
+  incrCounter(cmp._store.c1)
+  incrCounter(cmp._store.c2)
+  incrCounter(cmp._store.c3)
+}
+```
 
 ## Tips and tricks
 
 * Initialize and save child components inside the parent component's data object
-* Render child components with `child.view(args)`
-* Don't pass arguments to a child component view unless you need to. Having no args will reduce re-renders.
-* To manually re-render a component, call `component._render()`

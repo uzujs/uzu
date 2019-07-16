@@ -1,138 +1,121 @@
 // Multiple countdown timer example
 // Run locally with `budo --live --open examples/timer.js`
-const { Component, h } = require('..')
+const { stateful, h } = require('..')
+const Statechart = require('@uzu/statechart')
 
 // A countdown timer component with a state machine
 function Timer (start) {
-  const data = {
-    // Data
+  const state = Statechart('initial', {
+    reset: [{
+      sources: ['running', 'finished', 'paused'],
+      dest: 'initial',
+      action: (timer) => {
+        if (timer._store.interval) {
+          clearInterval(timer._store.interval)
+        }
+        timer._store.ms = timer._store.start
+        timer._render()
+      }
+    }],
+    toggle: [
+      // start
+      {
+        sources: ['initial', 'paused'],
+        dest: 'running',
+        action: (timer) => {
+          timer._store.interval = setInterval(() => {
+            if (timer._store.ms <= 0) {
+              // We ran out of time. Trigger the finish action
+              clearInterval(timer._store.interval)
+              timer._store.ms = 0
+              timer._store.state = state.finish()
+            } else {
+              // Continue counting down
+              timer._store.ms -= 100
+            }
+            timer._render()
+          }, 100)
+        }
+      },
+      // pause
+      {
+        sources: ['running'],
+        dest: 'paused',
+        action: (timer) => {
+          clearInterval(timer._store.interval)
+          timer._store.interval = null
+          timer._render()
+        }
+      }
+    ],
+    finish: [{ sources: ['running'], dest: 'finished' }]
+  })
+
+  return stateful({
+    state,
     interval: null, // setInterval reference
     start, // start time in ms
     ms: start // elapsed time in ms
-  }
-  return Component({
-    data,
-    // States and state transitions
-    transitions: {
-      initial: 'initial',
-      reset: [{
-        sources: ['running', 'finished', 'paused'],
-        dest: 'initial',
-        action: (timer) => {
-          if (timer.interval) {
-            clearInterval(timer.interval)
-          }
-          timer.ms = timer.start
-        }
-      }],
-      // Start or pause
-      toggle: [
-        // start
-        {
-          sources: ['initial', 'paused'],
-          dest: 'running',
-          action: (timer) => {
-            timer.interval = setInterval(() => {
-              if (timer.ms <= 0) {
-                clearInterval(timer.interval)
-                timer.ms = 0
-                timer.finish()
-              } else {
-                timer.ms -= 100
-                timer._render()
-              }
-            }, 100)
-          }
-        },
-        // pause
-        {
-          sources: ['running'],
-          dest: 'paused',
-          action: (timer) => {
-            clearInterval(timer.interval)
-            timer.interval = null
-          }
-        }
-      ],
-      finish: [{
-        sources: ['running'],
-        dest: 'finished'
-      }]
-    },
-    view
-  })
+  }, view)
 }
 
 function view (timer) {
+  const st = timer._store
   return h('div', [
     h('p', [
-      Math.ceil(timer.ms / 1000),
+      Math.ceil(st.ms / 1000),
       ' seconds left'
     ]),
     h('button', {
-      props: {
-        disabled: timer.state === 'initial'
-      },
-      on: {
-        click: () => timer.reset()
-      }
+      props: { disabled: st.state.current === 'initial' },
+      on: { click: () => st.state.reset(timer) }
     }, 'Reset'),
     h('button', {
-      props: {
-        disabled: timer.state === 'finished'
-      },
-      on: {
-        click: () => timer.toggle()
-      }
+      props: { disabled: st.state.current === 'finished' },
+      on: { click: () => st.state.toggle(timer) }
     }, timer.state === 'running' ? 'Pause' : 'Start')
   ])
 }
 
-let id = 0
+// Append a new timer component to the TimerList's list
+// Wrap each timer in an object with an id
+function appendTimer (list) {
+  const timer = Timer(5000)
+  const _id = String(Math.random() * 100000)
+  list._store.timers.push({ id: _id, cmp: timer })
+  list._render()
+}
+
+// Remove a timer from the TimerList by ID
+function removeTimer (list, _id) {
+  list._store.timers = list._store.timers.filter(t => t.id !== _id)
+  list._render()
+}
 
 // The TimerList is a demonstration of the modularity and scalability of uzu.
 // Components can be dynamically instantiated, removed, nested, and aggregated
 // Global controls can manipulate *all* child timers
 function TimerList () {
-  return Component({
-    data: {
-      timers: []
-    },
-    actions: {
-      // Methods
-      append (list) {
-        // Wrap each timer in an object with an id
-        const timer = Timer(5000)
-        const _id = id++
-        timer._emitter.on('state:finished', (obj) => {
-          console.log('timer finished!', timer)
-        })
-        list.timers.push({ id: _id, cmp: timer })
-        list.totalInitial += 1
-      },
-      remove (list, id) {
-        list.timers = list.timers.filter(t => t.id !== id)
-      }
-    },
-    view (list) {
-      return h('div', [
-        h('button', {
-          on: { click: () => list.append() }
-        }, 'Add timer'),
-        h('div', list.timers.map(timer => {
-          return h('div', {
-            // It's important for snabbdom to use a key here, when repeating dynamic components like this
-            key: timer.id
-          }, [
-            h('hr'),
-            h('button', { on: { click: () => list.remove(timer.id) } }, 'Remove timer'),
-            timer.cmp.view()
-          ])
-        }))
-      ])
-    }
+  return stateful({
+    timers: []
+  }, (list) => {
+    return h('div', [
+      h('button', {
+        on: { click: () => appendTimer(list) }
+      }, 'Add timer'),
+      h('div', list.timers.map(timer => {
+        return h('div', {
+          // It's important for snabbdom to use a key here, when repeating dynamic components like this
+          key: timer.id
+        }, [
+          h('hr'),
+          h('button', { on: { click: () => removeTimer(list, timer.id) } }, 'Remove timer'),
+          timer.cmp
+        ])
+      }))
+    ])
   })
 }
 
-const el = TimerList().view().elm
-document.body.appendChild(el)
+const list = TimerList()
+document.body.appendChild(list.elm)
