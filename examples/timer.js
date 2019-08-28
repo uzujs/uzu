@@ -1,11 +1,11 @@
 // Multiple countdown timer example
 // Run locally with `budo --live --open examples/timer.js`
 const { stateful, h } = require('..')
-const Statechart = require('@uzu/statechart')
+const statechart = require('../statechart')
 
 // A countdown timer component with a state machine
 function Timer (start) {
-  const state = Statechart('initial', {
+  const state = statechart('initial', {
     reset: [{
       sources: ['running', 'finished', 'paused'],
       dest: 'initial',
@@ -28,7 +28,7 @@ function Timer (start) {
               // We ran out of time. Trigger the finish action
               clearInterval(timer._store.interval)
               timer._store.ms = 0
-              timer._store.state = state.finish()
+              timer._store.state = state.finish(timer)
             } else {
               // Continue counting down
               timer._store.ms -= 100
@@ -48,7 +48,13 @@ function Timer (start) {
         }
       }
     ],
-    finish: [{ sources: ['running'], dest: 'finished' }]
+    finish: [{
+      sources: ['running'],
+      dest: 'finished',
+      action: (timer) => {
+        timer._render()
+      }
+    }]
   })
 
   return stateful({
@@ -61,6 +67,7 @@ function Timer (start) {
 
 function view (timer) {
   const st = timer._store
+  console.log('state', st.state)
   return h('div', [
     h('p', [
       Math.ceil(st.ms / 1000),
@@ -73,7 +80,7 @@ function view (timer) {
     h('button', {
       props: { disabled: st.state.current === 'finished' },
       on: { click: () => st.state.toggle(timer) }
-    }, timer.state === 'running' ? 'Pause' : 'Start')
+    }, st.state.current === 'running' ? 'Pause' : 'Start')
   ])
 }
 
@@ -103,7 +110,7 @@ function TimerList () {
       h('button', {
         on: { click: () => appendTimer(list) }
       }, 'Add timer'),
-      h('div', list.timers.map(timer => {
+      h('div', list._store.timers.map(timer => {
         return h('div', {
           // It's important for snabbdom to use a key here, when repeating dynamic components like this
           key: timer.id

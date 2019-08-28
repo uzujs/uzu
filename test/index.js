@@ -3,6 +3,8 @@ const test = require('tape')
 // Test the top-level Component constructor
 const { stateful, h } = require('..')
 
+require('./statechart')
+
 function Counter (start = 0) {
   return stateful({ count: start }, (counter) => {
     return h('div', [
